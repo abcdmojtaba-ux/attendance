@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1565C0" />
+  <title>پنل حضور و غیاب مدرسه</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #1565C0; --primary-dark: #0D47A1; --primary-light: #E3F2FD;
+      --success: #2E7D32; --danger: #C62828; --warning: #F9A825;
+      --bg: #F5F7FA; --card: #FFFFFF; --text: #212121; --text-secondary: #616161;
+      --border: #E0E0E0; --shadow: 0 2px 8px rgba(0,0,0,0.08); --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: Tahoma, "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding-bottom: 70px; min-height: 100vh; }
+    .header { background: var(--primary); color: white; padding: 16px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+    .header h1 { font-size: 1.2rem; font-weight: 600; }
+    .header .subtitle { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -2px 10px rgba(0,0,0,0.08); z-index: 100; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px; color: var(--text-secondary); font-size: 0.68rem; cursor: pointer; border: none; background: none; }
+    .nav-item.active { color: var(--primary); font-weight: 600; }
+    .nav-item svg { width: 22px; height: 22px; }
+    .page { display: none; padding: 16px; }
+    .page.active { display: block; }
+    .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+    .card-meta { font-size: 0.85rem; color: var(--text-secondary); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 18px; border: none; border-radius: 10px; font-size: 0.92rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-warning { background: var(--warning); color: #333; }
+    .btn-outline { background: transparent; border: 1.5px solid var(--primary); color: var(--primary); }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 7px 12px; font-size: 0.82rem; }
+    .fab { position: fixed; bottom: 80px; left: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 28px; box-shadow: 0 4px 12px rgba(21,101,192,0.4); cursor: pointer; z-index: 90; display: none; align-items: center; justify-content: center; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+    .form-control { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 1rem; font-family: inherit; background: white; }
+    .form-control:focus { outline: none; border-color: var(--primary); }
+    textarea.form-control { min-height: 90px; resize: vertical; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+    .stat-card { background: white; border-radius: var(--radius); padding: 14px 8px; text-align: center; box-shadow: var(--shadow); }
+    .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+    .stat-label { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+    .list-item { display: flex; align-items: center; gap: 10px; padding: 13px; background: white; border-radius: var(--radius); margin-bottom: 8px; box-shadow: var(--shadow); }
+    .list-item .info { flex: 1; min-width: 0; }
+    .list-item .name { font-weight: 600; font-size: 0.95rem; }
+    .list-item .meta { font-size: 0.8rem; color: var(--text-secondary); direction: ltr; text-align: right; }
+    .checkbox { width: 20px; height: 20px; accent-color: var(--primary); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-header h2 { font-size: 1.1rem; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; }
+    .empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: var(--primary-light); color: var(--primary); }
+    .badge-danger { background: #FFEBEE; color: var(--danger); }
+    .badge-warning { background: #FFF8E1; color: #F57F17; }
+    .actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .preview-box { background: var(--primary-light); border-radius: 10px; padding: 12px; margin: 10px 0; font-size: 0.88rem; white-space: pre-wrap; border-right: 4px solid var(--primary); }
+    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 22px; border-radius: 30px; font-size: 0.88rem; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 90%; text-align: center; }
+    .toast.show { opacity: 1; }
+    .credit { text-align: center; font-size: 0.75rem; color: var(--text-secondary); margin-top: 20px; }
+    .select-bar { display: flex; align-items: center; justify-content: space-between; background: var(--primary-light); padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
+    .back-btn { background: none; border: none; color: white; font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
+    .import-box { border: 2px dashed var(--primary); border-radius: 12px; padding: 16px; text-align: center; background: var(--primary-light); margin-bottom: 14px; }
+    .storage-bar { height: 10px; background: #E0E0E0; border-radius: 5px; overflow: hidden; margin: 8px 0; }
+    .storage-fill { height: 100%; background: var(--primary); border-radius: 5px; transition: width 0.3s; }
+    .record-item { background: #FAFAFA; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; border-right: 3px solid var(--primary); }
+    .record-item.absent { border-right-color: var(--danger); }
+    .record-item.late { border-right-color: var(--warning); }
+    .record-item.discipline { border-right-color: #7B1FA2; }
+  </style>
+</head>
+<body>
+
+  <div id="lock-screen" style="display:none;position:fixed;inset:0;background:var(--primary);z-index:999;flex-direction:column;align-items:center;justify-content:center;padding:30px;color:white;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <h2 style="margin-bottom:8px;font-size:1.3rem;">پنل حضور و غیاب مدرسه</h2>
+    <p style="opacity:0.85;margin-bottom:16px;font-size:0.9rem;">نوع ورود را انتخاب کنید</p>
+    <select id="lock-shift" class="form-control" style="max-width:280px;margin-bottom:14px;text-align:center;font-size:1rem;">
+      <option value="shift_morning">شیفت صبح</option>
+      <option value="shift_evening">شیفت عصر</option>
+      <option value="admin">کاربر ارشد (مدیر)</option>
+    </select>
+    <input type="password" id="lock-password" class="form-control" placeholder="رمز عبور" style="max-width:280px;text-align:center;margin-bottom:16px;font-size:1.1rem;" />
+    <button class="btn btn-primary" style="background:white;color:var(--primary);min-width:160px;" onclick="tryUnlock()">ورود</button>
+    <p id="lock-error" style="color:#ffcdd2;margin-top:14px;font-size:0.9rem;display:none;">رمز اشتباه است</p>
+    <p style="opacity:0.7;margin-top:20px;font-size:0.8rem;text-align:center">هر شیفت فقط داده‌های خودش را می‌بیند<br>مدیر به هر دو شیفت دسترسی دارد</p>
+  </div>
+
+  <div class="header" id="header">
+    <h1 id="header-title">پنل حضور و غیاب مدرسه</h1>
+    <div class="subtitle" id="header-subtitle">طراحی: سید مجتبی موسوی</div>
+  </div>
+
+  <!-- HOME -->
+  <div id="page-home" class="page active">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-value" id="stat-classes">0</div><div class="stat-label">کلاس</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-students">0</div><div class="stat-label">دانش‌آموز</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-absences">0</div><div class="stat-label">غیبت ماه</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">ارسال سریع پیامک</div>
+      <div class="card-meta" style="margin-bottom:12px">به اولیا پیامک غیبت یا تأخیر بفرستید</div>
+      <button class="btn btn-primary btn-block" onclick="showPage('send')">شروع ارسال پیامک</button>
+    </div>
+    <div class="card">
+      <div class="card-title">راهنما</div>
+      <div style="font-size:0.88rem;color:var(--text-secondary);margin-top:8px">
+        • کلاس و دانش‌آموز را تعریف کنید<br>
+        • غیبت و موارد انضباطی را ثبت کنید<br>
+        • به اولیا پیامک بفرستید<br>
+        • از گزارش‌ها برای اولیا استفاده کنید
+      </div>
+    </div>
+    <div class="credit">طراحی: سید مجتبی موسوی</div>
+  </div>
+
+  <!-- CLASSES -->
+  <div id="page-classes" class="page">
+    <div id="classes-list"></div>
+    <div class="empty" id="classes-empty" style="display:none"><div style="font-size:3rem;opacity:0.3">📚</div><p>کلاسی تعریف نشده</p></div>
+  </div>
+
+  <!-- STUDENTS -->
+  <div id="page-students" class="page">
+    <div class="import-box">
+      <div style="font-weight:600;margin-bottom:6px;">ورود از اکسل / CSV</div>
+      <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;">ستون A = نام &nbsp;|&nbsp; ستون B = شماره</div>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('excel-file').click()">انتخاب فایل</button>
+      <input type="file" id="excel-file" accept=".csv,.txt,.xlsx,.xls" style="display:none" onchange="handleExcelImport(event)" />
+    </div>
+    <div class="select-bar" id="select-bar" style="display:none">
+      <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="checkbox" id="select-all" onchange="toggleSelectAll()"> انتخاب همه</label>
+      <button class="btn btn-primary btn-sm" onclick="goToSendFromClass()">ارسال پیامک</button>
+    </div>
+    <div id="students-list"></div>
+    <div class="empty" id="students-empty" style="display:none"><div style="font-size:3rem;opacity:0.3">👨‍🎓</div><p>دانش‌آموزی نیست</p></div>
+  </div>
+
+  <!-- STUDENT PERFORMANCE -->
+  <div id="page-performance" class="page">
+    <div id="performance-content"></div>
+  </div>
+
+  <!-- TEMPLATES -->
+  <div id="page-templates" class="page">
+    <div id="templates-list"></div>
+    <div class="empty" id="templates-empty" style="display:none"><div style="font-size:3rem;opacity:0.3">📝</div><p>قالبی وجود ندارد</p></div>
+  </div>
+
+  <!-- SEND -->
+  <div id="page-send" class="page">
+    <div class="form-group">
+      <label>کلاس</label>
+      <select class="form-control" id="send-class" onchange="loadStudentsForSend()"></select>
+    </div>
+    <div class="form-group">
+      <label>دانش‌آموزان</label>
+      <div id="send-students-list" style="max-height:160px;overflow-y:auto"></div>
+    </div>
+    <div class="form-group">
+      <label>قالب پیام</label>
+      <select class="form-control" id="send-template" onchange="applyTemplate()"><option value="">-- متن دلخواه --</option></select>
+    </div>
+    <div class="form-group">
+      <label>متن پیام</label>
+      <textarea class="form-control" id="send-message" placeholder="متن پیام..."></textarea>
+    </div>
+    <div style="background:#E3F2FD;padding:12px;border-radius:10px;margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="also-register-absent" class="checkbox" checked />
+        همزمان غیبت امروز را هم برای دانش‌آموزان ثبت کن
+      </label>
+      <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:6px;margin-right:30px">
+        اگر تیک داشته باشد، غیبت تاریخ امروز در پرونده دانش‌آموز ثبت می‌شود و بعداً قابل حذف یا ویرایش است.
+      </div>
+    </div>
+    <button class="btn btn-success btn-block" onclick="startSending()">آماده‌سازی و ارسال</button>
+    <div id="send-progress" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div id="page-reports" class="page">
+    <div class="card">
+      <div class="card-title">گزارش کلاس</div>
+      <div class="form-group" style="margin-top:10px">
+        <label>انتخاب کلاس</label>
+        <select class="form-control" id="report-class"></select>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:8px">بازه زمانی سریع:</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="setReportRange('month')">این ماه</button>
+          <button class="btn btn-outline btn-sm" onclick="setReportRange('year')">امسال</button>
+          <button class="btn btn-outline btn-sm" onclick="setReportRange('all')">همه</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>از تاریخ <small style="color:var(--text-secondary)">(میلادی)</small></label>
+        <input type="date" class="form-control" id="report-from" onchange="updatePersianRangeLabel()" />
+      </div>
+      <div class="form-group">
+        <label>تا تاریخ <small style="color:var(--text-secondary)">(میلادی)</small></label>
+        <input type="date" class="form-control" id="report-to" onchange="updatePersianRangeLabel()" />
+      </div>
+      <div id="persian-range-label" style="font-size:0.85rem;color:var(--primary);margin-bottom:12px;text-align:center"></div>
+
+      <button class="btn btn-primary btn-block" onclick="generateClassReport()">نمایش گزارش کلاس</button>
+    </div>
+    <div id="report-result"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" class="page">
+    <div class="card">
+      <div class="card-title">شیفت فعلی</div>
+      <div class="card-meta" id="current-shift-label" style="margin-bottom:10px">—</div>
+      <div id="shift-switch-actions"></div>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="logout()">خروج و تعویض شیفت</button>
+    </div>
+    <div class="card" id="admin-panel" style="display:none">
+      <div class="card-title">پنل کاربر ارشد</div>
+      <div class="card-meta" style="margin-bottom:10px">مدیریت رمزها و دسترسی به هر دو شیفت</div>
+      <div id="admin-actions"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">تعریف کسر نمره انضباط</div>
+      <div class="card-meta" style="margin-bottom:10px">یک‌بار تعریف کن؛ موقع ثبت برای همه اعمال می‌شود</div>
+      <div id="score-rules-list"></div>
+      <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="openAddScoreRule()">افزودن مورد جدید</button>
+    </div>
+    <div class="card">
+      <div class="card-title">حجم حافظه</div>
+      <div class="card-meta" id="storage-text">در حال محاسبه...</div>
+      <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
+      <div style="font-size:0.8rem;color:var(--text-secondary)">داده‌های دو شیفت جدا هستند ولی حافظه مشترک است (ظرفیت بالا).</div>
+    </div>
+    <div class="card">
+      <div class="card-title">پشتیبان‌گیری</div>
+      <button class="btn btn-primary btn-block" onclick="exportBackup()" style="margin-bottom:8px">دانلود پشتیبان کامل (JSON)</button>
+      <button class="btn btn-outline btn-block" onclick="document.getElementById('import-file').click()">بازیابی از فایل</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(event)" />
+    </div>
+    <div class="card">
+      <div class="card-title">درباره</div>
+      <div style="font-size:0.9rem;color:var(--text-secondary);margin-top:6px">پنل حضور و غیاب مدرسه<br>طراحی: سید مجتبی موسوی</div>
+    </div>
+  </div>
+
+  <button class="fab" id="fab" onclick="handleFab()">+</button>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-page="home" onclick="showPage('home')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>خانه</button>
+    <button class="nav-item" data-page="classes" onclick="showPage('classes')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>کلاس‌ها</button>
+    <button class="nav-item" data-page="templates" onclick="showPage('templates')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>قالب‌ها</button>
+    <button class="nav-item" data-page="reports" onclick="showPage('reports')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>گزارش</button>
+    <button class="nav-item" data-page="settings" onclick="showPage('settings')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>تنظیمات</button>
+  </nav>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-header"><h2 id="modal-title">عنوان</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+const DB_NAME = 'SchoolAttendancePro';
+const DB_VERSION = 3;
+let db = null;
+let currentClassId = null;
+let currentStudentId = null;
+let currentShiftId = null; // shift_morning | shift_evening
+let isAdmin = false;
+let isUnlocked = false;
+let appSettings = {
+  adminPassword: null,
+  shiftPasswords: {
+    shift_morning: null,
+    shift_evening: null
+  }
+};
+
+const SHIFTS = {
+  shift_morning: { id: 'shift_morning', name: 'شیفت صبح' },
+  shift_evening: { id: 'shift_evening', name: 'شیفت عصر' }
+};
+
+function shiftName(id) {
+  return (SHIFTS[id] && SHIFTS[id].name) || id || '';
+}
+
+// ========== IndexedDB ==========
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains('classes')) database.createObjectStore('classes', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('students')) {
+        const s = database.createObjectStore('students', { keyPath: 'id' });
+        s.createIndex('classId', 'classId', { unique: false });
+      }
+      if (!database.objectStoreNames.contains('templates')) database.createObjectStore('templates', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('attendance')) {
+        const a = database.createObjectStore('attendance', { keyPath: 'id' });
+        a.createIndex('studentId', 'studentId', { unique: false });
+        a.createIndex('date', 'date', { unique: false });
+      }
+      if (!database.objectStoreNames.contains('discipline')) {
+        const d = database.createObjectStore('discipline', { keyPath: 'id' });
+        d.createIndex('studentId', 'studentId', { unique: false });
+      }
+      if (!database.objectStoreNames.contains('smsHistory')) database.createObjectStore('smsHistory', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('settings')) database.createObjectStore('settings', { keyPath: 'key' });
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGet(store, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(id);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(store, item) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(item);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(store, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetByIndex(store, indexName, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).index(indexName).getAll(value);
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  try { return new Date(d).toLocaleDateString('fa-IR'); } catch { return d; }
+}
+
+// تاریخ شمسی امروز برای استفاده در پیامک
+function persianToday() {
+  try {
+    return new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return new Date().toLocaleDateString('fa-IR');
+  }
+}
+
+// جایگزینی متغیرهای قالب
+function applyTemplateVars(text, studentName) {
+  return text
+    .replace(/\{نام\}/g, studentName || '')
+    .replace(/\{تاریخ\}/g, persianToday());
+}
+
+function normalizePhone(phone) {
+  let p = String(phone).replace(/\D/g, '');
+  if (p.startsWith('98') && p.length >= 12) p = p.substring(2);
+  if (p.length === 10 && p.startsWith('9')) p = '0' + p;
+  return p;
+}
+
+// ========== Navigation ==========
+async function showPage(page, id = null) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (nav) nav.classList.add('active');
+
+  const title = document.getElementById('header-title');
+  const sub = document.getElementById('header-subtitle');
+  const fab = document.getElementById('fab');
+
+  if (page === 'home') {
+    title.textContent = 'پنل حضور و غیاب مدرسه';
+    const shiftLabel = isAdmin ? ('مدیر | ' + shiftName(currentShiftId)) : shiftName(currentShiftId);
+    sub.textContent = shiftLabel + ' — طراحی: سید مجتبی موسوی';
+    fab.style.display = 'none';
+    await updateStats();
+  } else if (page === 'classes') {
+    title.textContent = 'کلاس‌ها';
+    sub.textContent = 'مدیریت کلاس‌ها';
+    fab.style.display = 'flex';
+    await renderClasses();
+  } else if (page === 'students') {
+    currentClassId = id;
+    const cls = await dbGet('classes', id);
+    title.innerHTML = `<button class="back-btn" onclick="showPage('classes')">←</button> ${cls ? cls.name : 'کلاس'}`;
+    sub.textContent = '';
+    fab.style.display = 'flex';
+    await renderStudents();
+  } else if (page === 'performance') {
+    currentStudentId = id;
+    const st = await dbGet('students', id);
+    title.innerHTML = `<button class="back-btn" onclick="showPage('students', currentClassId)">←</button> ${st ? st.name : 'دانش‌آموز'}`;
+    sub.textContent = 'عملکرد و گزارش';
+    fab.style.display = 'none';
+    await renderPerformance();
+  } else if (page === 'templates') {
+    title.textContent = 'قالب‌های پیام';
+    sub.textContent = '';
+    fab.style.display = 'flex';
+    await renderTemplates();
+  } else if (page === 'send') {
+    title.textContent = 'ارسال پیامک';
+    sub.textContent = '';
+    fab.style.display = 'none';
+    await prepareSendPage();
+  } else if (page === 'reports') {
+    title.textContent = 'گزارش‌ها';
+    sub.textContent = 'گزارش حضور و غیاب';
+    fab.style.display = 'none';
+    await prepareReportsPage();
+  } else if (page === 'settings') {
+    title.textContent = 'تنظیمات';
+    sub.textContent = '';
+    fab.style.display = 'none';
+    await renderSettings();
+  }
+}
+
+function handleFab() {
+  const active = document.querySelector('.page.active').id;
+  if (active === 'page-classes') openAddClass();
+  else if (active === 'page-students') openAddStudent();
+  else if (active === 'page-templates') openAddTemplate();
+}
+
+// ========== Stats ==========
+async function updateStats() {
+  const classes = forCurrentShift(await dbGetAll('classes'));
+  const students = forCurrentShift(await dbGetAll('students'));
+  document.getElementById('stat-classes').textContent = classes.length;
+  document.getElementById('stat-students').textContent = students.length;
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const allAtt = forCurrentShift(await dbGetAll('attendance'));
+  const monthAbs = allAtt.filter(a => a.type === 'absent' && a.date >= monthStart).length;
+  document.getElementById('stat-absences').textContent = monthAbs;
+}
+
+// ========== Classes ==========
+async function renderClasses() {
+  const list = document.getElementById('classes-list');
+  const empty = document.getElementById('classes-empty');
+  const classes = forCurrentShift(await dbGetAll('classes'));
+  if (classes.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const students = forCurrentShift(await dbGetAll('students'));
+  list.innerHTML = classes.map(c => {
+    const count = students.filter(s => s.classId === c.id).length;
+    return `<div class="list-item" onclick="showPage('students', '${c.id}')">
+      <div class="info"><div class="name">${c.name}</div><div class="meta">${count} دانش‌آموز</div></div>
+      <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openEditClass('${c.id}')">ویرایش</button>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteClass('${c.id}')">حذف</button>
+    </div>`;
+  }).join('');
+}
+
+function openAddClass() {
+  document.getElementById('modal-title').textContent = 'افزودن کلاس';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>نام کلاس</label><input type="text" class="form-control" id="class-name" placeholder="مثلاً: پایه پنجم الف" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveClass()">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function openEditClass(id) {
+  const c = await dbGet('classes', id);
+  if (!c) return;
+  document.getElementById('modal-title').textContent = 'ویرایش کلاس';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>نام کلاس</label><input type="text" class="form-control" id="class-name" value="${c.name}" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveClass('${id}')">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function saveClass(id = null) {
+  const name = document.getElementById('class-name').value.trim();
+  if (!name) return toast('نام کلاس را وارد کنید');
+  if (id) {
+    const c = await dbGet('classes', id);
+    c.name = name;
+    if (!c.shiftId) c.shiftId = currentShiftId;
+    await dbPut('classes', c);
+  } else {
+    await dbPut('classes', { id: uid(), name, shiftId: currentShiftId });
+  }
+  closeModal(); await renderClasses(); await updateStats(); toast('ذخیره شد');
+}
+
+async function deleteClass(id) {
+  if (!confirm('کلاس و تمام دانش‌آموزان آن حذف شوند؟')) return;
+  const students = await dbGetByIndex('students', 'classId', id);
+  for (const s of students) await dbDelete('students', s.id);
+  await dbDelete('classes', id);
+  await renderClasses(); await updateStats(); toast('حذف شد');
+}
+
+// ========== Students ==========
+async function renderStudents() {
+  const list = document.getElementById('students-list');
+  const empty = document.getElementById('students-empty');
+  const selectBar = document.getElementById('select-bar');
+  const students = await dbGetByIndex('students', 'classId', currentClassId);
+  if (students.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; selectBar.style.display = 'none'; return; }
+  empty.style.display = 'none'; selectBar.style.display = 'flex';
+  list.innerHTML = students.map(s => `
+    <div class="list-item">
+      <input type="checkbox" class="checkbox student-check" value="${s.id}" />
+      <div class="info" onclick="showPage('performance', '${s.id}')" style="cursor:pointer">
+        <div class="name">${s.name}</div>
+        <div class="meta">${(s.phones || []).join(' | ')}</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="openEditStudent('${s.id}')">ویرایش</button>
+    </div>`).join('');
+}
+
+function toggleSelectAll() {
+  const checked = document.getElementById('select-all').checked;
+  document.querySelectorAll('.student-check').forEach(c => c.checked = checked);
+}
+
+function openAddStudent() {
+  document.getElementById('modal-title').textContent = 'افزودن دانش‌آموز';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>نام و نام خانوادگی</label><input type="text" class="form-control" id="st-name" /></div>
+    <div class="form-group"><label>شماره والدین</label><input type="text" class="form-control" id="st-phone" placeholder="9123456789" dir="ltr" style="text-align:left" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveStudent()">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function openEditStudent(id) {
+  const s = await dbGet('students', id);
+  if (!s) return;
+  document.getElementById('modal-title').textContent = 'ویرایش دانش‌آموز';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>نام و نام خانوادگی</label><input type="text" class="form-control" id="st-name" value="${s.name}" /></div>
+    <div class="form-group"><label>شماره والدین</label><input type="text" class="form-control" id="st-phone" value="${(s.phones||[])[0]||''}" dir="ltr" style="text-align:left" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveStudent('${id}')">ذخیره</button>
+    <button class="btn btn-danger btn-block" style="margin-top:8px" onclick="deleteStudent('${id}')">حذف دانش‌آموز</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function saveStudent(id = null) {
+  const name = document.getElementById('st-name').value.trim();
+  let phone = document.getElementById('st-phone').value.trim();
+  if (!name) return toast('نام را وارد کنید');
+  phone = normalizePhone(phone);
+  if (phone && phone.length < 10) return toast('شماره معتبر نیست');
+  if (id) {
+    const s = await dbGet('students', id);
+    s.name = name;
+    s.phones = phone ? [phone] : [];
+    if (!s.shiftId) s.shiftId = currentShiftId;
+    await dbPut('students', s);
+  } else {
+    await dbPut('students', { id: uid(), classId: currentClassId, name, phones: phone ? [phone] : [], shiftId: currentShiftId });
+  }
+  closeModal(); await renderStudents(); await updateStats(); toast('ذخیره شد');
+}
+
+async function deleteStudent(id) {
+  if (!confirm('دانش‌آموز حذف شود؟')) return;
+  await dbDelete('students', id);
+  closeModal(); await renderStudents(); await updateStats(); toast('حذف شد');
+}
+
+function goToSendFromClass() {
+  const selected = [...document.querySelectorAll('.student-check:checked')].map(c => c.value);
+  if (selected.length === 0) return toast('حداقل یک نفر انتخاب کنید');
+  showPage('send').then(() => {
+    setTimeout(() => {
+      document.getElementById('send-class').value = currentClassId;
+      loadStudentsForSend().then(() => {
+        selected.forEach(id => {
+          const cb = document.querySelector(`#send-students-list input[value="${id}"]`);
+          if (cb) cb.checked = true;
+        });
+      });
+    }, 150);
+  });
+}
+
+// ========== Excel Import ==========
+function handleExcelImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const fileName = file.name.toLowerCase();
+  const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      let rows = [];
+      if (isExcel) {
+        if (typeof XLSX === 'undefined') { toast('کتابخانه اکسل لود نشده'); return; }
+        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+      } else {
+        let text = '';
+        const buf = e.target.result;
+        try {
+          text = new TextDecoder('utf-8').decode(buf);
+          if ((text.match(/\?/g) || []).length > 3) text = new TextDecoder('windows-1256').decode(buf);
+        } catch { text = new TextDecoder('utf-8').decode(buf); }
+        text = text.replace(/^\uFEFF/, '');
+        rows = text.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(/[,\t;]/).map(p => p.trim().replace(/^"|"$/g, '')));
+      }
+      let added = 0;
+      const existing = await dbGetByIndex('students', 'classId', currentClassId);
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length < 2) continue;
+        let name = String(row[0] || '').trim();
+        let phone = String(row[1] || '').trim();
+        if (i === 0 && (name.includes('نام') || name.toLowerCase().includes('name'))) continue;
+        phone = normalizePhone(phone);
+        if (name && phone.length >= 10) {
+          if (!existing.some(s => (s.phones || [])[0] === phone)) {
+            await dbPut('students', { id: uid(), classId: currentClassId, name, phones: [phone], shiftId: currentShiftId });
+            added++;
+          }
+        }
+      }
+      await renderStudents(); await updateStats();
+      toast(added + ' دانش‌آموز اضافه شد');
+    } catch (err) { console.error(err); toast('خطا در خواندن فایل'); }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+// ========== Performance (Attendance + Discipline) ==========
+async function renderPerformance() {
+  const st = await dbGet('students', currentStudentId);
+  if (!st) return;
+  const att = (await dbGetByIndex('attendance', 'studentId', currentStudentId)).sort((a, b) => b.date.localeCompare(a.date));
+  const disc = (await dbGetByIndex('discipline', 'studentId', currentStudentId)).sort((a, b) => b.date.localeCompare(a.date));
+  const sms = (await dbGetAll('smsHistory')).filter(h => h.studentId === currentStudentId).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  const absences = att.filter(a => a.type === 'absent');
+  const lates = att.filter(a => a.type === 'late');
+  const scoreInfo = calcDisciplineScore(att, disc);
+
+  let html = `
+    <div class="card">
+      <div class="card-title">${st.name}</div>
+      <div class="card-meta">${(st.phones || []).join(' | ')}</div>
+      <div class="stats" style="margin-top:14px;margin-bottom:0">
+        <div class="stat-card"><div class="stat-value" style="color:var(--danger)">${absences.length}</div><div class="stat-label">غیبت</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--warning)">${lates.length}</div><div class="stat-label">تأخیر</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#6A1B9A">${scoreInfo.score}</div><div class="stat-label">نمره انضباط</div></div>
+      </div>
+      <div style="text-align:center;font-size:0.82rem;color:var(--text-secondary);margin-top:8px">
+        پایه ۲۰ − کسر ${scoreInfo.deduct} = <strong style="color:#6A1B9A">${scoreInfo.score}</strong>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">ثبت سریع</div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn btn-danger btn-sm" onclick="openAddAttendance('absent')">ثبت غیبت</button>
+        <button class="btn btn-warning btn-sm" onclick="openAddAttendance('late')">ثبت تأخیر</button>
+        <button class="btn btn-outline btn-sm" onclick="openAddDiscipline()">مورد انضباطی</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">غیبت‌ها و تأخیرها (${att.length})</div>`;
+  if (att.length === 0) html += `<div class="card-meta" style="margin-top:8px">موردی ثبت نشده</div>`;
+  else att.slice(0, 30).forEach(a => {
+    const sc = parseFloat(a.scoreDeduct) || 0;
+    html += `<div class="record-item ${a.type}">
+      <div style="display:flex;justify-content:space-between"><strong>${a.type === 'absent' ? 'غیبت' : 'تأخیر'}</strong><span>${formatDate(a.date)}</span></div>
+      ${a.note ? `<div style="font-size:0.85rem;margin-top:4px">${a.note}</div>` : ''}
+      <div style="font-size:0.8rem;color:var(--danger);margin-top:2px">کسر نمره: ${sc}</div>
+      <button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="deleteAttendance('${a.id}')">حذف</button>
+    </div>`;
+  });
+  html += `</div><div class="card"><div class="card-title">موارد انضباطی (${disc.length})</div>`;
+  if (disc.length === 0) html += `<div class="card-meta" style="margin-top:8px">موردی ثبت نشده</div>`;
+  else disc.forEach(d => {
+    const sc = parseFloat(d.scoreDeduct) || 0;
+    html += `<div class="record-item discipline">
+      <div style="display:flex;justify-content:space-between"><strong>${d.title}</strong><span>${formatDate(d.date)}</span></div>
+      <div style="font-size:0.85rem;margin-top:4px">${d.description || ''}</div>
+      <div style="font-size:0.8rem;color:#6A1B9A;margin-top:2px">کسر نمره: ${sc}</div>
+      <button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="deleteDiscipline('${d.id}')">حذف</button>
+    </div>`;
+  });
+  html += `</div><div class="card"><div class="card-title">پیامک‌های ارسال‌شده (${sms.length})</div>`;
+  if (sms.length === 0) html += `<div class="card-meta" style="margin-top:8px">پیامکی ثبت نشده</div>`;
+  else sms.slice(0, 20).forEach(h => {
+    html += `<div class="record-item">
+      <div style="font-size:0.85rem">${formatDate(h.date)} — ${h.phone || ''}</div>
+      <div style="font-size:0.88rem;margin-top:4px;white-space:pre-wrap">${h.message || ''}</div>
+      <button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="registerAbsentFromSms('${h.date}', '${st.id}')">ثبت به عنوان غیبت این تاریخ</button>
+    </div>`;
+  });
+  html += `</div>
+    <button class="btn btn-primary btn-block" onclick="printStudentReport()">نمایش گزارش کامل برای اولیا</button>`;
+  document.getElementById('performance-content').innerHTML = html;
+}
+
+async function openAddAttendance(type) {
+  const label = type === 'absent' ? 'غیبت' : 'تأخیر';
+  const rules = (await getScoreRules()).filter(r => r.type === type);
+  const defaultScore = rules[0] ? rules[0].scoreDeduct : (type === 'absent' ? 0.5 : 0.25);
+  const options = rules.map(r => `<option value="${r.scoreDeduct}" data-title="${r.title}">${r.title} (کسر ${r.scoreDeduct})</option>`).join('');
+  document.getElementById('modal-title').textContent = 'ثبت ' + label;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>تاریخ</label><input type="date" class="form-control" id="att-date" value="${todayStr()}" /></div>
+    <div class="form-group"><label>نوع / دلیل کسر</label>
+      <select class="form-control" id="att-rule" onchange="document.getElementById('att-score').value=this.value">
+        ${options || `<option value="${defaultScore}">پیش‌فرض (کسر ${defaultScore})</option>`}
+        <option value="0">موجه — بدون کسر (۰)</option>
+      </select>
+    </div>
+    <div class="form-group"><label>کسر نمره</label>
+      <input type="number" class="form-control" id="att-score" value="${defaultScore}" step="0.25" min="0" max="20" />
+    </div>
+    <div class="form-group"><label>توضیح (اختیاری)</label><input type="text" class="form-control" id="att-note" placeholder="مثلاً: بیماری" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveAttendance('${type}')">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function saveAttendance(type) {
+  const date = document.getElementById('att-date').value;
+  const note = document.getElementById('att-note').value.trim();
+  let scoreDeduct = parseFloat(document.getElementById('att-score').value);
+  if (isNaN(scoreDeduct) || scoreDeduct < 0) scoreDeduct = 0;
+  if (!date) return toast('تاریخ را وارد کنید');
+  await dbPut('attendance', { id: uid(), studentId: currentStudentId, classId: currentClassId, date, type, note, scoreDeduct, shiftId: currentShiftId });
+  closeModal(); await renderPerformance(); await updateStats(); toast('ثبت شد');
+}
+
+async function deleteAttendance(id) {
+  if (!confirm('حذف شود؟')) return;
+  await dbDelete('attendance', id);
+  await renderPerformance(); await updateStats(); toast('حذف شد');
+}
+
+async function registerAbsentFromSms(date, studentId) {
+  const existing = await dbGetAll('attendance');
+  const already = existing.some(a => a.studentId === studentId && a.date === date && a.type === 'absent');
+  if (already) {
+    toast('غیبت این تاریخ قبلاً ثبت شده');
+    return;
+  }
+  const st = await dbGet('students', studentId);
+  const rules = await getScoreRules();
+  const absentRule = rules.find(r => r.type === 'absent');
+  await dbPut('attendance', {
+    id: uid(),
+    studentId: studentId,
+    classId: st ? st.classId : currentClassId,
+    date: date,
+    type: 'absent',
+    note: 'ثبت از روی پیامک ارسال‌شده',
+    scoreDeduct: absentRule ? absentRule.scoreDeduct : 0.5,
+    shiftId: currentShiftId
+  });
+  await renderPerformance();
+  await updateStats();
+  toast('غیبت ثبت شد');
+}
+
+async function openAddDiscipline() {
+  const rules = (await getScoreRules()).filter(r => r.type === 'discipline');
+  const defaultScore = rules[0] ? rules[0].scoreDeduct : 1;
+  const options = rules.map(r => `<option value="${r.id}" data-score="${r.scoreDeduct}" data-title="${r.title}">${r.title} (کسر ${r.scoreDeduct})</option>`).join('');
+  document.getElementById('modal-title').textContent = 'ثبت مورد انضباطی';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>نوع مورد (از موارد تعریف‌شده)</label>
+      <select class="form-control" id="disc-rule" onchange="onDiscRuleChange()">
+        ${options || '<option value="">— موردی تعریف نشده —</option>'}
+        <option value="custom">سایر (دستی)</option>
+      </select>
+    </div>
+    <div class="form-group"><label>عنوان</label>
+      <input type="text" class="form-control" id="disc-title" value="${rules[0] ? rules[0].title : ''}" /></div>
+    <div class="form-group"><label>تاریخ</label><input type="date" class="form-control" id="disc-date" value="${todayStr()}" /></div>
+    <div class="form-group"><label>کسر نمره</label>
+      <input type="number" class="form-control" id="disc-score" value="${defaultScore}" step="0.25" min="0" max="20" />
+    </div>
+    <div class="form-group"><label>توضیحات</label><textarea class="form-control" id="disc-desc"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveDiscipline()">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function onDiscRuleChange() {
+  const sel = document.getElementById('disc-rule');
+  const opt = sel.options[sel.selectedIndex];
+  if (sel.value === 'custom') return;
+  const score = opt.getAttribute('data-score');
+  const title = opt.getAttribute('data-title');
+  if (score != null) document.getElementById('disc-score').value = score;
+  if (title) document.getElementById('disc-title').value = title;
+}
+
+async function saveDiscipline() {
+  const title = document.getElementById('disc-title').value.trim();
+  const date = document.getElementById('disc-date').value;
+  const description = document.getElementById('disc-desc').value.trim();
+  let scoreDeduct = parseFloat(document.getElementById('disc-score').value);
+  if (isNaN(scoreDeduct) || scoreDeduct < 0) scoreDeduct = 0;
+  if (!title || !date) return toast('عنوان و تاریخ را وارد کنید');
+  await dbPut('discipline', { id: uid(), studentId: currentStudentId, classId: currentClassId, title, date, description, scoreDeduct, shiftId: currentShiftId });
+  closeModal(); await renderPerformance(); toast('ثبت شد');
+}
+
+// محاسبه نمره انضباط (پایه ۲۰)
+function calcDisciplineScore(attendanceList, disciplineList) {
+  const BASE = 20;
+  let deduct = 0;
+  (attendanceList || []).forEach(a => { deduct += parseFloat(a.scoreDeduct) || 0; });
+  (disciplineList || []).forEach(d => { deduct += parseFloat(d.scoreDeduct) || 0; });
+  const score = Math.max(0, Math.round((BASE - deduct) * 100) / 100);
+  return { base: BASE, deduct: Math.round(deduct * 100) / 100, score };
+}
+
+// ========== قوانین کسر نمره (سراسری) ==========
+const DEFAULT_SCORE_RULES = [
+  { id: 'rule_absent', title: 'غیبت غیرموجه', scoreDeduct: 0.5, type: 'absent' },
+  { id: 'rule_late', title: 'تأخیر', scoreDeduct: 0.25, type: 'late' },
+  { id: 'rule_fight', title: 'دعوا', scoreDeduct: 1, type: 'discipline' },
+  { id: 'rule_disrespect', title: 'بی‌احترامی', scoreDeduct: 0.5, type: 'discipline' },
+  { id: 'rule_uniform', title: 'عدم رعایت پوشش', scoreDeduct: 0.25, type: 'discipline' }
+];
+
+async function getScoreRules() {
+  const s = await dbGet('settings', 'scoreRules');
+  if (s && Array.isArray(s.value) && s.value.length) return s.value;
+  // اولین بار: ذخیره پیش‌فرض
+  await dbPut('settings', { key: 'scoreRules', value: DEFAULT_SCORE_RULES });
+  return DEFAULT_SCORE_RULES.slice();
+}
+
+async function saveScoreRules(rules) {
+  await dbPut('settings', { key: 'scoreRules', value: rules });
+}
+
+async function renderScoreRules() {
+  const list = document.getElementById('score-rules-list');
+  if (!list) return;
+  const rules = await getScoreRules();
+  if (!rules.length) {
+    list.innerHTML = '<div class="card-meta">موردی تعریف نشده</div>';
+    return;
+  }
+  const typeLabel = { absent: 'غیبت', late: 'تأخیر', discipline: 'انضباطی' };
+  list.innerHTML = rules.map(r => `
+    <div class="list-item" style="margin-bottom:6px">
+      <div class="info">
+        <div class="name">${r.title}</div>
+        <div class="meta">${typeLabel[r.type] || r.type} — کسر: ${r.scoreDeduct}</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="openEditScoreRule('${r.id}')">ویرایش</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteScoreRule('${r.id}')">حذف</button>
+    </div>`).join('');
+}
+
+function openAddScoreRule() {
+  document.getElementById('modal-title').textContent = 'افزودن مورد کسر نمره';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>عنوان</label>
+      <input type="text" class="form-control" id="rule-title" placeholder="مثلاً: دعوا / غیبت غیرموجه" /></div>
+    <div class="form-group"><label>نوع</label>
+      <select class="form-control" id="rule-type">
+        <option value="discipline">مورد انضباطی</option>
+        <option value="absent">غیبت</option>
+        <option value="late">تأخیر</option>
+      </select></div>
+    <div class="form-group"><label>میزان کسر نمره</label>
+      <input type="number" class="form-control" id="rule-score" value="1" step="0.25" min="0" max="20" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveScoreRule()">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function openEditScoreRule(id) {
+  const rules = await getScoreRules();
+  const r = rules.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modal-title').textContent = 'ویرایش مورد';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>عنوان</label>
+      <input type="text" class="form-control" id="rule-title" value="${r.title}" /></div>
+    <div class="form-group"><label>نوع</label>
+      <select class="form-control" id="rule-type">
+        <option value="discipline" ${r.type==='discipline'?'selected':''}>مورد انضباطی</option>
+        <option value="absent" ${r.type==='absent'?'selected':''}>غیبت</option>
+        <option value="late" ${r.type==='late'?'selected':''}>تأخیر</option>
+      </select></div>
+    <div class="form-group"><label>میزان کسر نمره</label>
+      <input type="number" class="form-control" id="rule-score" value="${r.scoreDeduct}" step="0.25" min="0" max="20" /></div>
+    <button class="btn btn-primary btn-block" onclick="saveScoreRule('${id}')">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function saveScoreRule(id = null) {
+  const title = document.getElementById('rule-title').value.trim();
+  const type = document.getElementById('rule-type').value;
+  let scoreDeduct = parseFloat(document.getElementById('rule-score').value);
+  if (!title) return toast('عنوان را وارد کنید');
+  if (isNaN(scoreDeduct) || scoreDeduct < 0) scoreDeduct = 0;
+  let rules = await getScoreRules();
+  if (id) {
+    const r = rules.find(x => x.id === id);
+    if (r) { r.title = title; r.type = type; r.scoreDeduct = scoreDeduct; }
+  } else {
+    rules.push({ id: uid(), title, type, scoreDeduct });
+  }
+  await saveScoreRules(rules);
+  closeModal();
+  await renderScoreRules();
+  toast('ذخیره شد');
+}
+
+async function deleteScoreRule(id) {
+  if (!confirm('حذف شود؟')) return;
+  let rules = await getScoreRules();
+  rules = rules.filter(r => r.id !== id);
+  await saveScoreRules(rules);
+  await renderScoreRules();
+  toast('حذف شد');
+}
+
+async function deleteDiscipline(id) {
+  if (!confirm('حذف شود؟')) return;
+  await dbDelete('discipline', id);
+  await renderPerformance(); toast('حذف شد');
+}
+
+async function printStudentReport() {
+  const st = await dbGet('students', currentStudentId);
+  const att = (await dbGetByIndex('attendance', 'studentId', currentStudentId)).sort((a, b) => a.date.localeCompare(b.date));
+  const disc = (await dbGetByIndex('discipline', 'studentId', currentStudentId)).sort((a, b) => a.date.localeCompare(b.date));
+  const sms = (await dbGetAll('smsHistory')).filter(h => h.studentId === currentStudentId);
+  const absences = att.filter(a => a.type === 'absent');
+  const lates = att.filter(a => a.type === 'late');
+  const scoreInfo = calcDisciplineScore(att, disc);
+
+  let report = `گزارش عملکرد دانش‌آموز\n\nنام: ${st.name}\nشماره اولیا: ${(st.phones||[]).join(', ')}\n\n`;
+  report += `خلاصه:\n- تعداد غیبت: ${absences.length} روز\n- تعداد تأخیر: ${lates.length} بار\n- تعداد پیامک به اولیا: ${sms.length}\n`;
+  report += `- نمره انضباط: ${scoreInfo.score} (پایه ۲۰ − کسر ${scoreInfo.deduct})\n\n`;
+  if (absences.length) {
+    report += `تاریخ‌های غیبت:\n`;
+    absences.forEach(a => { report += `• ${formatDate(a.date)}${a.note ? ' (' + a.note + ')' : ''} [کسر: ${parseFloat(a.scoreDeduct)||0}]\n`; });
+    report += '\n';
+  }
+  if (lates.length) {
+    report += `تاریخ‌های تأخیر:\n`;
+    lates.forEach(a => { report += `• ${formatDate(a.date)}${a.note ? ' (' + a.note + ')' : ''} [کسر: ${parseFloat(a.scoreDeduct)||0}]\n`; });
+    report += '\n';
+  }
+  if (disc.length) {
+    report += `موارد انضباطی:\n`;
+    disc.forEach(d => { report += `• ${formatDate(d.date)} — ${d.title}${d.description ? ': ' + d.description : ''} [کسر: ${parseFloat(d.scoreDeduct)||0}]\n`; });
+    report += '\n';
+  }
+  report += `تاریخ گزارش: ${new Date().toLocaleDateString('fa-IR')}\nطراحی: سید مجتبی موسوی`;
+
+  document.getElementById('modal-title').textContent = 'گزارش برای اولیا';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="preview-box" style="max-height:50vh;overflow-y:auto;white-space:pre-wrap;font-size:0.9rem">${report}</div>
+    <button class="btn btn-primary btn-block" onclick="navigator.clipboard.writeText(\`${report.replace(/`/g, '\\`')}\`);toast('کپی شد')">کپی گزارش</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+// ========== Templates ==========
+async function renderTemplates() {
+  const list = document.getElementById('templates-list');
+  const empty = document.getElementById('templates-empty');
+  let templates = forCurrentShift(await dbGetAll('templates'));
+  if (templates.length === 0) {
+    const defaults = [
+      { id: uid(), title: 'غیبت', text: 'ولی محترم {نام} در تاریخ {تاریخ} غایب بوده است. لطفاً علت را اعلام فرمایید.', shiftId: currentShiftId },
+      { id: uid(), title: 'تأخیر', text: 'ولی محترم {نام} در تاریخ {تاریخ} با تأخیر وارد مدرسه شد.', shiftId: currentShiftId },
+      { id: uid(), title: 'تشویق', text: 'ولی محترم {نام} امروز ({تاریخ}) عملکرد بسیار خوبی داشت.', shiftId: currentShiftId }
+    ];
+    for (const t of defaults) await dbPut('templates', t);
+    templates = defaults;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = templates.map(t => `
+    <div class="card" style="border-right:4px solid var(--primary)">
+      <div class="card-title">${t.title}</div>
+      <div class="card-meta" style="margin-top:6px;white-space:pre-wrap">${t.text}</div>
+      <div class="actions">
+        <button class="btn btn-outline btn-sm" onclick="openEditTemplate('${t.id}')">ویرایش</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}')">حذف</button>
+      </div>
+    </div>`).join('');
+}
+
+function openAddTemplate() {
+  document.getElementById('modal-title').textContent = 'قالب جدید';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>عنوان</label><input type="text" class="form-control" id="tpl-title" /></div>
+    <div class="form-group"><label>متن</label><textarea class="form-control" id="tpl-text" placeholder="از {نام} و {تاریخ} استفاده کنید"></textarea></div>
+    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:10px">متغیرها: {نام} و {تاریخ} (تاریخ شمسی امروز)</div>
+    <button class="btn btn-primary btn-block" onclick="saveTemplate()">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function openEditTemplate(id) {
+  const t = await dbGet('templates', id);
+  if (!t) return;
+  document.getElementById('modal-title').textContent = 'ویرایش قالب';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>عنوان</label><input type="text" class="form-control" id="tpl-title" value="${t.title}" /></div>
+    <div class="form-group"><label>متن</label><textarea class="form-control" id="tpl-text">${t.text}</textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveTemplate('${id}')">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function saveTemplate(id = null) {
+  const title = document.getElementById('tpl-title').value.trim();
+  const text = document.getElementById('tpl-text').value.trim();
+  if (!title || !text) return toast('عنوان و متن را وارد کنید');
+  if (id) {
+    const t = await dbGet('templates', id);
+    t.title = title; t.text = text;
+    await dbPut('templates', t);
+  } else {
+    await dbPut('templates', { id: uid(), title, text, shiftId: currentShiftId });
+  }
+  closeModal(); await renderTemplates(); toast('ذخیره شد');
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('حذف شود؟')) return;
+  await dbDelete('templates', id);
+  await renderTemplates(); toast('حذف شد');
+}
+
+// ========== Send SMS ==========
+async function prepareSendPage() {
+  const classes = forCurrentShift(await dbGetAll('classes'));
+  document.getElementById('send-class').innerHTML = '<option value="">-- انتخاب کلاس --</option>' + classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const templates = forCurrentShift(await dbGetAll('templates'));
+  document.getElementById('send-template').innerHTML = '<option value="">-- متن دلخواه --</option>' + templates.map(t => `<option value="${t.id}">${t.title}</option>`).join('');
+  document.getElementById('send-students-list').innerHTML = '<div style="color:var(--text-secondary);font-size:0.9rem">ابتدا کلاس را انتخاب کنید</div>';
+  document.getElementById('send-message').value = '';
+  document.getElementById('send-progress').style.display = 'none';
+}
+
+async function loadStudentsForSend() {
+  const classId = document.getElementById('send-class').value;
+  const container = document.getElementById('send-students-list');
+  if (!classId) { container.innerHTML = '<div style="color:var(--text-secondary)">ابتدا کلاس را انتخاب کنید</div>'; return; }
+  const students = await dbGetByIndex('students', 'classId', classId);
+  if (students.length === 0) { container.innerHTML = '<div style="color:var(--text-secondary)">دانش‌آموزی نیست</div>'; return; }
+  container.innerHTML = students.map(s => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <input type="checkbox" class="checkbox send-student-check" value="${s.id}" />
+      <span>${s.name} <small style="color:var(--text-secondary)">(${(s.phones||[])[0]||''})</small></span>
+    </label>`).join('');
+}
+
+async function applyTemplate() {
+  const id = document.getElementById('send-template').value;
+  if (!id) return;
+  const t = await dbGet('templates', id);
+  if (t) document.getElementById('send-message').value = t.text;
+}
+
+async function startSending() {
+  const classId = document.getElementById('send-class').value;
+  const message = document.getElementById('send-message').value.trim();
+  const selectedIds = [...document.querySelectorAll('.send-student-check:checked')].map(c => c.value);
+  if (!classId) return toast('کلاس را انتخاب کنید');
+  if (selectedIds.length === 0) return toast('حداقل یک دانش‌آموز انتخاب کنید');
+  if (!message) return toast('متن پیام را وارد کنید');
+
+  const students = [];
+  for (const id of selectedIds) {
+    const s = await dbGet('students', id);
+    if (s) students.push(s);
+  }
+  const allPhones = students.map(s => (s.phones || [])[0]).filter(p => p && p.length >= 10);
+  const progress = document.getElementById('send-progress');
+  progress.style.display = 'block';
+  let html = '';
+
+  if (students.length > 1 && allPhones.length > 1) {
+    const groupText = applyTemplateVars(message, 'فرزند شما');
+    const groupLink = `sms:${allPhones.join(',')}?body=${encodeURIComponent(groupText)}`;
+    html += `<div class="card" style="border-right:4px solid #2E7D32;background:#E8F5E9">
+      <div class="card-title" style="color:#2E7D32">📤 ارسال گروهی</div>
+      <div class="card-meta">تعداد: ${allPhones.length} نفر</div>
+      <div class="preview-box" style="background:white">${groupText}</div>
+      <a href="${groupLink}" class="btn btn-success btn-block">باز کردن پیامک گروهی</a>
+    </div>
+    <div style="margin:14px 0;text-align:center;color:var(--text-secondary);font-weight:600">—— یا ارسال تکی ——</div>`;
+  }
+
+  const alsoAbsent = document.getElementById('also-register-absent')?.checked === true;
+  let absentCount = 0;
+  const today = todayStr();
+
+  // همه غیبت‌های موجود را یک‌بار می‌گیریم
+  const allAttendance = alsoAbsent ? await dbGetAll('attendance') : [];
+
+  for (const st of students) {
+    const finalText = applyTemplateVars(message, st.name);
+    const phone = (st.phones || [])[0] || '';
+    const link = `sms:${phone}?body=${encodeURIComponent(finalText)}`;
+    await dbPut('smsHistory', {
+      id: uid(), studentId: st.id, studentName: st.name, phone, message: finalText,
+      classId, date: today, timestamp: new Date().toISOString(), shiftId: currentShiftId
+    });
+
+    // ثبت خودکار غیبت امروز
+    if (alsoAbsent) {
+      const alreadyToday = allAttendance.some(a => a.studentId === st.id && a.date === today && a.type === 'absent');
+      if (!alreadyToday) {
+        const rules = await getScoreRules();
+        const absentRule = rules.find(r => r.type === 'absent');
+        const autoScore = absentRule ? absentRule.scoreDeduct : 0.5;
+        const newAtt = {
+          id: uid(),
+          studentId: st.id,
+          classId: classId,
+          date: today,
+          type: 'absent',
+          note: 'ثبت خودکار همراه با ارسال پیامک',
+          scoreDeduct: autoScore,
+          shiftId: currentShiftId
+        };
+        await dbPut('attendance', newAtt);
+        allAttendance.push(newAtt);
+        absentCount++;
+      }
+    }
+
+    html += `<div class="card">
+      <div class="name">${st.name}</div>
+      <div class="meta">${phone}</div>
+      <div class="preview-box">${finalText}</div>
+      <a href="${link}" class="btn btn-primary btn-block btn-sm">باز کردن پیامک</a>
+    </div>`;
+  }
+  progress.innerHTML = html;
+  if (alsoAbsent) {
+    toast(absentCount > 0 ? `پیامک آماده شد و ${absentCount} غیبت ثبت شد` : 'پیامک آماده شد (غیبت قبلاً ثبت شده بود)');
+  } else {
+    toast('پیامک آماده شد');
+  }
+  await updateStats();
+}
+
+// ========== Reports ==========
+async function prepareReportsPage() {
+  const classes = forCurrentShift(await dbGetAll('classes'));
+  document.getElementById('report-class').innerHTML = '<option value="">-- انتخاب کلاس --</option>' + classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('report-result').innerHTML = '';
+  setReportRange('month');
+}
+
+function setReportRange(type) {
+  const now = new Date();
+  let from, to;
+  to = now.toISOString().slice(0, 10);
+
+  if (type === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  } else if (type === 'year') {
+    // تقریبی سال تحصیلی شمسی: از مهر (معمولاً ۲۳ سپتامبر)
+    const year = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+    from = year + '-09-23';
+  } else {
+    from = '';
+    to = '';
+  }
+
+  document.getElementById('report-from').value = from;
+  document.getElementById('report-to').value = to;
+  updatePersianRangeLabel();
+}
+
+function updatePersianRangeLabel() {
+  const from = document.getElementById('report-from').value;
+  const to = document.getElementById('report-to').value;
+  const label = document.getElementById('persian-range-label');
+  if (!from && !to) {
+    label.textContent = 'بازه: همه تاریخ‌ها';
+    return;
+  }
+  const fromFa = from ? formatDate(from) : '...';
+  const toFa = to ? formatDate(to) : '...';
+  label.textContent = `بازه شمسی: از ${fromFa} تا ${toFa}`;
+}
+
+async function generateClassReport() {
+  const classId = document.getElementById('report-class').value;
+  const from = document.getElementById('report-from').value;
+  const to = document.getElementById('report-to').value;
+  if (!classId) return toast('کلاس را انتخاب کنید');
+
+  currentClassId = classId;
+  const cls = await dbGet('classes', classId);
+  const className = cls ? cls.name : 'کلاس';
+  const students = await dbGetByIndex('students', 'classId', classId);
+  const allAtt = await dbGetAll('attendance');
+  const allDisc = await dbGetAll('discipline');
+  const allSms = await dbGetAll('smsHistory');
+
+  if (students.length === 0) {
+    document.getElementById('report-result').innerHTML = `<div class="card"><div class="card-meta">دانش‌آموزی در این کلاس نیست</div></div>`;
+    return;
+  }
+
+  const fromFa = from ? formatDate(from) : 'ابتدا';
+  const toFa = to ? formatDate(to) : 'الان';
+  let totalAbs = 0, totalLate = 0, totalDisc = 0, totalSms = 0;
+  const rows = [];
+
+  for (const st of students) {
+    let att = allAtt.filter(a => a.studentId === st.id);
+    if (from) att = att.filter(a => a.date >= from);
+    if (to) att = att.filter(a => a.date <= to);
+    const abs = att.filter(a => a.type === 'absent');
+    const late = att.filter(a => a.type === 'late');
+
+    let disc = allDisc.filter(d => d.studentId === st.id);
+    if (from) disc = disc.filter(d => d.date >= from);
+    if (to) disc = disc.filter(d => d.date <= to);
+
+    let sms = allSms.filter(h => h.studentId === st.id);
+    if (from) sms = sms.filter(h => h.date >= from);
+    if (to) sms = sms.filter(h => h.date <= to);
+
+    const scoreInfo = calcDisciplineScore(att, disc);
+
+    totalAbs += abs.length;
+    totalLate += late.length;
+    totalDisc += disc.length;
+    totalSms += sms.length;
+
+    rows.push({ st, abs, late, disc, sms, scoreInfo });
+  }
+
+  // مرتب‌سازی: کمترین نمره انضباط اول (برای ژوری)
+  rows.sort((a, b) => a.scoreInfo.score - b.scoreInfo.score);
+
+  // ----- نمایش بصری -----
+  let html = `
+    <div class="card">
+      <div class="card-title">گزارش کلی کلاس ${className}</div>
+      <div class="card-meta">بازه: از ${fromFa} تا ${toFa}</div>
+      <div class="stats" style="margin-top:14px;margin-bottom:0">
+        <div class="stat-card"><div class="stat-value" style="color:var(--danger)">${totalAbs}</div><div class="stat-label">کل غیبت</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--warning)">${totalLate}</div><div class="stat-label">کل تأخیر</div></div>
+        <div class="stat-card"><div class="stat-value">${totalSms}</div><div class="stat-label">کل پیامک</div></div>
+      </div>
+      <div style="text-align:center;font-size:0.85rem;color:var(--text-secondary);margin-top:8px">
+        تعداد دانش‌آموز: ${students.length} | موارد انضباطی: ${totalDisc}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 ژوری نمره انضباط کلاس</div>
+      <div class="card-meta" style="margin-bottom:10px">نمره پایه ۲۰ — مرتب‌شده از کم به زیاد</div>`;
+
+  for (const r of rows) {
+    const sc = r.scoreInfo.score;
+    const color = sc < 15 ? 'var(--danger)' : (sc < 18 ? 'var(--warning)' : 'var(--success)');
+    html += `<div class="list-item" style="cursor:pointer;margin-top:6px" onclick="showPage('performance', '${r.st.id}')">
+      <div class="info">
+        <div class="name">${r.st.name}</div>
+        <div class="meta">غیبت: ${r.abs.length} | تأخیر: ${r.late.length} | انضباطی: ${r.disc.length} | کسر: ${r.scoreInfo.deduct}</div>
+      </div>
+      <div style="font-size:1.3rem;font-weight:700;color:${color};min-width:48px;text-align:center">${sc}</div>
+    </div>`;
+  }
+  html += `</div>
+
+    <div class="card">
+      <div class="card-title">جزئیات دانش‌آموزان</div>
+      <div class="card-meta" style="margin-bottom:10px">روی نام بزنید تا عملکرد تکی باز شود</div>`;
+
+  for (const r of rows) {
+    html += `<div class="list-item" style="cursor:pointer;margin-top:8px" onclick="showPage('performance', '${r.st.id}')">
+      <div class="info">
+        <div class="name">${r.st.name}</div>
+        <div class="meta">نمره انضباط: ${r.scoreInfo.score} | غیبت: ${r.abs.length} | تأخیر: ${r.late.length}</div>
+        ${r.abs.length ? `<div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px">${r.abs.map(a => formatDate(a.date)).join(' ، ')}</div>` : ''}
+      </div>
+      <span style="color:var(--primary);font-size:0.85rem">مشاهده ←</span>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // ----- متن قابل کپی / پرینت -----
+  let textReport = `گزارش کلی کلاس ${className}\n`;
+  textReport += `بازه زمانی: از ${fromFa} تا ${toFa}\n`;
+  textReport += `تعداد دانش‌آموز: ${students.length}\n\n`;
+  textReport += `خلاصه کلاس:\n`;
+  textReport += `- کل غیبت‌ها: ${totalAbs} روز\n`;
+  textReport += `- کل تأخیرها: ${totalLate} بار\n`;
+  textReport += `- موارد انضباطی: ${totalDisc}\n`;
+  textReport += `- تعداد پیامک به اولیا: ${totalSms}\n\n`;
+  textReport += `ژوری نمره انضباط (پایه ۲۰):\n`;
+  textReport += `${'─'.repeat(30)}\n`;
+  textReport += `ردیف | نام | نمره انضباط | کسر | غیبت | تأخیر\n`;
+  rows.forEach((r, i) => {
+    textReport += `${i + 1}. ${r.st.name} | ${r.scoreInfo.score} | کسر ${r.scoreInfo.deduct} | غ:${r.abs.length} ت:${r.late.length}\n`;
+  });
+  textReport += `\n${'─'.repeat(30)}\n`;
+  textReport += `جزئیات:\n`;
+  for (const r of rows) {
+    textReport += `\n${r.st.name} — نمره انضباط: ${r.scoreInfo.score}\n`;
+    textReport += `  غیبت: ${r.abs.length} | تأخیر: ${r.late.length} | انضباطی: ${r.disc.length} | پیامک: ${r.sms.length}\n`;
+    if (r.abs.length) {
+      textReport += `  تاریخ غیبت‌ها: ${r.abs.map(a => formatDate(a.date) + (a.scoreDeduct ? '(' + a.scoreDeduct + ')' : '')).join(' ، ')}\n`;
+    }
+    if (r.disc.length) {
+      r.disc.forEach(d => {
+        textReport += `  انضباطی: ${formatDate(d.date)} — ${d.title} [کسر: ${parseFloat(d.scoreDeduct)||0}]\n`;
+      });
+    }
+  }
+  textReport += `\n${'─'.repeat(30)}\n`;
+  textReport += `تاریخ تهیه گزارش: ${new Date().toLocaleDateString('fa-IR')}\n`;
+  textReport += `طراحی: سید مجتبی موسوی`;
+
+  html += `
+    <div class="card">
+      <div class="card-title">گزارش قابل پرینت / کپی</div>
+      <div class="preview-box" id="class-report-text" style="max-height:40vh;overflow-y:auto;white-space:pre-wrap;font-size:0.88rem">${textReport}</div>
+      <button class="btn btn-primary btn-block" onclick="copyClassReport()">کپی گزارش کلاس</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" onclick="printClassReport()">پرینت گزارش کلاس</button>
+    </div>`;
+
+  // ذخیره متن برای کپی
+  window._lastClassReportText = textReport;
+  document.getElementById('report-result').innerHTML = html;
+}
+
+function copyClassReport() {
+  const text = window._lastClassReportText || '';
+  if (!text) return toast('ابتدا گزارش را نمایش دهید');
+  navigator.clipboard.writeText(text).then(() => toast('گزارش کلاس کپی شد')).catch(() => toast('کپی نشد'));
+}
+
+function printClassReport() {
+  const text = window._lastClassReportText || '';
+  if (!text) return toast('ابتدا گزارش را نمایش دهید');
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>گزارش کلاس</title>
+    <style>body{font-family:Tahoma,Arial,sans-serif;padding:24px;line-height:1.8;white-space:pre-wrap;font-size:14px}</style>
+    </head><body>${text.replace(/</g,'&lt;')}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 300);
+}
+
+// ========== Settings & Storage ==========
+async function estimateStorage() {
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      const used = est.usage || 0;
+      const quota = est.quota || 1;
+      const percent = Math.min(100, Math.round((used / quota) * 100));
+      const usedMB = (used / (1024 * 1024)).toFixed(2);
+      const quotaMB = (quota / (1024 * 1024)).toFixed(0);
+      document.getElementById('storage-text').textContent = `${usedMB} مگابایت از حدود ${quotaMB} مگابایت استفاده شده`;
+      document.getElementById('storage-fill').style.width = percent + '%';
+      if (percent > 70) document.getElementById('storage-fill').style.background = 'var(--danger)';
+      else if (percent > 40) document.getElementById('storage-fill').style.background = 'var(--warning)';
+      else document.getElementById('storage-fill').style.background = 'var(--primary)';
+    } else {
+      // fallback: count records
+      const counts = await Promise.all([
+        dbGetAll('classes'), dbGetAll('students'), dbGetAll('attendance'),
+        dbGetAll('discipline'), dbGetAll('smsHistory'), dbGetAll('templates')
+      ]);
+      const total = counts.reduce((s, a) => s + a.length, 0);
+      document.getElementById('storage-text').textContent = `تعداد کل رکوردها: ${total} (IndexedDB - ظرفیت بالا)`;
+      document.getElementById('storage-fill').style.width = Math.min(100, total / 50) + '%';
+    }
+  } catch {
+    document.getElementById('storage-text').textContent = 'IndexedDB فعال است (ظرفیت بالا)';
+  }
+}
+
+async function renderSettings() {
+  await estimateStorage();
+  await loadAppSettings();
+  await renderScoreRules();
+
+  document.getElementById('current-shift-label').textContent =
+    (isAdmin ? 'مدیر — مشاهده: ' : '') + shiftName(currentShiftId);
+
+  const switchBox = document.getElementById('shift-switch-actions');
+  if (isAdmin) {
+    switchBox.innerHTML = `
+      <div style="font-size:0.85rem;margin-bottom:8px">به‌عنوان مدیر می‌توانید بین شیفت‌ها جابه‌جا شوید:</div>
+      <button class="btn btn-primary btn-sm" onclick="adminSwitchShift('shift_morning')" style="margin-left:6px">شیفت صبح</button>
+      <button class="btn btn-primary btn-sm" onclick="adminSwitchShift('shift_evening')">شیفت عصر</button>`;
+  } else {
+    switchBox.innerHTML = `<div style="font-size:0.85rem;color:var(--text-secondary)">شما فقط به ${shiftName(currentShiftId)} دسترسی دارید.</div>`;
+  }
+
+  const adminPanel = document.getElementById('admin-panel');
+  if (isAdmin) {
+    adminPanel.style.display = 'block';
+    document.getElementById('admin-actions').innerHTML = `
+      <button class="btn btn-outline btn-block" style="margin-bottom:8px" onclick="openChangePass('admin')">تغییر رمز مدیر</button>
+      <button class="btn btn-outline btn-block" style="margin-bottom:8px" onclick="openChangePass('shift_morning')">تغییر رمز شیفت صبح</button>
+      <button class="btn btn-outline btn-block" style="margin-bottom:8px" onclick="openChangePass('shift_evening')">تغییر رمز شیفت عصر</button>
+      <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:8px">
+        رمز صبح: ${appSettings.shiftPasswords.shift_morning ? 'تنظیم شده ✓' : 'تنظیم نشده'}<br>
+        رمز عصر: ${appSettings.shiftPasswords.shift_evening ? 'تنظیم شده ✓' : 'تنظیم نشده'}
+      </div>`;
+  } else {
+    adminPanel.style.display = 'none';
+  }
+}
+
+async function adminSwitchShift(shiftId) {
+  currentShiftId = shiftId;
+  toast('الان در ' + shiftName(shiftId) + ' هستید');
+  await updateStats();
+  showPage('home');
+}
+
+function logout() {
+  isUnlocked = false;
+  isAdmin = false;
+  currentShiftId = null;
+  document.getElementById('lock-password').value = '';
+  document.getElementById('lock-error').style.display = 'none';
+  document.getElementById('lock-screen').style.display = 'flex';
+}
+
+function openChangePass(target) {
+  const labels = {
+    admin: 'رمز مدیر',
+    shift_morning: 'رمز شیفت صبح',
+    shift_evening: 'رمز شیفت عصر'
+  };
+  document.getElementById('modal-title').textContent = 'تغییر ' + (labels[target] || 'رمز');
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>رمز جدید</label><input type="password" class="form-control" id="new-pass" /></div>
+    <div class="form-group"><label>تکرار رمز</label><input type="password" class="form-control" id="new-pass2" /></div>
+    <button class="btn btn-primary btn-block" onclick="savePassChange('${target}')">ذخیره</button>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+async function savePassChange(target) {
+  const p1 = document.getElementById('new-pass').value;
+  const p2 = document.getElementById('new-pass2').value;
+  if (p1.length < 4) return toast('حداقل ۴ کاراکتر');
+  if (p1 !== p2) return toast('رمز یکسان نیست');
+  if (target === 'admin') {
+    await dbPut('settings', { key: 'adminPassword', value: p1 });
+    appSettings.adminPassword = p1;
+  } else {
+    await dbPut('settings', { key: 'pass_' + target, value: p1 });
+    appSettings.shiftPasswords[target] = p1;
+  }
+  closeModal();
+  await renderSettings();
+  toast('رمز ذخیره شد');
+}
+
+async function exportBackup() {
+  const data = {
+    classes: await dbGetAll('classes'),
+    students: await dbGetAll('students'),
+    templates: await dbGetAll('templates'),
+    attendance: await dbGetAll('attendance'),
+    discipline: await dbGetAll('discipline'),
+    smsHistory: await dbGetAll('smsHistory'),
+    settings: await dbGetAll('settings'),
+    exportDate: new Date().toLocaleString('fa-IR'),
+    version: 2
+  };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `school-attendance-backup-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('پشتیبان دانلود شد');
+}
+
+async function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.classes) return toast('فایل معتبر نیست');
+      if (!confirm('اطلاعات فعلی جایگزین می‌شود. ادامه؟')) return;
+      // clear and import
+      for (const store of ['classes', 'students', 'templates', 'attendance', 'discipline', 'smsHistory', 'settings']) {
+        const all = await dbGetAll(store);
+        for (const item of all) await dbDelete(store, item.id || item.key);
+      }
+      for (const c of (data.classes || [])) await dbPut('classes', c);
+      for (const s of (data.students || [])) await dbPut('students', s);
+      for (const t of (data.templates || [])) await dbPut('templates', t);
+      for (const a of (data.attendance || [])) await dbPut('attendance', a);
+      for (const d of (data.discipline || [])) await dbPut('discipline', d);
+      for (const h of (data.smsHistory || [])) await dbPut('smsHistory', h);
+      for (const s of (data.settings || [])) await dbPut('settings', s);
+      toast('بازیابی انجام شد');
+      await updateStats();
+      showPage('home');
+    } catch { toast('خطا در خواندن فایل'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+async function loadAppSettings() {
+  const admin = await dbGet('settings', 'adminPassword');
+  const morning = await dbGet('settings', 'pass_shift_morning');
+  const evening = await dbGet('settings', 'pass_shift_evening');
+  appSettings.adminPassword = admin ? admin.value : null;
+  appSettings.shiftPasswords.shift_morning = morning ? morning.value : null;
+  appSettings.shiftPasswords.shift_evening = evening ? evening.value : null;
+}
+
+async function checkLock() {
+  await loadAppSettings();
+  // همیشه صفحه ورود شیفت نمایش داده شود
+  if (!isUnlocked) {
+    document.getElementById('lock-screen').style.display = 'flex';
+    document.getElementById('lock-error').style.display = 'none';
+  } else {
+    document.getElementById('lock-screen').style.display = 'none';
+  }
+}
+
+async function tryUnlock() {
+  const input = document.getElementById('lock-password').value;
+  const selected = document.getElementById('lock-shift').value;
+  document.getElementById('lock-error').style.display = 'none';
+
+  if (selected === 'admin') {
+    // ورود مدیر
+    if (!appSettings.adminPassword) {
+      // اولین بار: رمزی که وارد شده به عنوان رمز مدیر ذخیره شود
+      if (input.length < 4) {
+        document.getElementById('lock-error').style.display = 'block';
+        document.getElementById('lock-error').textContent = 'رمز مدیر حداقل ۴ کاراکتر باشد';
+        return;
+      }
+      await dbPut('settings', { key: 'adminPassword', value: input });
+      appSettings.adminPassword = input;
+      isAdmin = true;
+      currentShiftId = 'shift_morning';
+      isUnlocked = true;
+      document.getElementById('lock-screen').style.display = 'none';
+      toast('رمز مدیر تنظیم شد — وارد شدید');
+      await updateStats();
+      showPage('home');
+      return;
+    }
+    if (input === appSettings.adminPassword) {
+      isAdmin = true;
+      currentShiftId = 'shift_morning';
+      isUnlocked = true;
+      document.getElementById('lock-screen').style.display = 'none';
+      toast('ورود مدیر موفق');
+      await updateStats();
+      showPage('home');
+    } else {
+      document.getElementById('lock-error').style.display = 'block';
+      document.getElementById('lock-error').textContent = 'رمز مدیر اشتباه است';
+      document.getElementById('lock-password').value = '';
+    }
+    return;
+  }
+
+  // ورود شیفت
+  const shiftPass = appSettings.shiftPasswords[selected];
+  if (!shiftPass) {
+    // اولین ورود این شیفت: رمز وارد شده ذخیره شود
+    if (input.length < 4) {
+      document.getElementById('lock-error').style.display = 'block';
+      document.getElementById('lock-error').textContent = 'رمز شیفت حداقل ۴ کاراکتر باشد';
+      return;
+    }
+    await dbPut('settings', { key: 'pass_' + selected, value: input });
+    appSettings.shiftPasswords[selected] = input;
+    isAdmin = false;
+    currentShiftId = selected;
+    isUnlocked = true;
+    document.getElementById('lock-screen').style.display = 'none';
+    toast('رمز ' + shiftName(selected) + ' تنظیم شد');
+    await updateStats();
+    showPage('home');
+    return;
+  }
+
+  if (input === shiftPass) {
+    isAdmin = false;
+    currentShiftId = selected;
+    isUnlocked = true;
+    document.getElementById('lock-screen').style.display = 'none';
+    toast('خوش آمدید — ' + shiftName(selected));
+    await updateStats();
+    showPage('home');
+  } else {
+    document.getElementById('lock-error').style.display = 'block';
+    document.getElementById('lock-error').textContent = 'رمز اشتباه است';
+    document.getElementById('lock-password').value = '';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('lock-screen').style.display === 'flex') tryUnlock();
+});
+
+// فیلتر داده‌ها بر اساس شیفت فعلی
+function forCurrentShift(items) {
+  if (!items) return [];
+  if (isAdmin && !currentShiftId) return items;
+  return items.filter(item => {
+    // داده‌های قدیمی بدون shiftId به شیفت صبح نسبت داده می‌شوند
+    const sid = item.shiftId || 'shift_morning';
+    return sid === currentShiftId;
+  });
+}
+
+// ========== Init ==========
+(async function init() {
+  try {
+    await openDB();
+    await checkLock();
+    if (isUnlocked) await updateStats();
+  } catch (err) {
+    console.error(err);
+    toast('خطا در راه‌اندازی پایگاه داده');
+  }
+})();
+</script>
+</body>
+</html>

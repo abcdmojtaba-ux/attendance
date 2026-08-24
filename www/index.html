@@ -74,6 +74,8 @@
     .record-item.absent { border-right-color: var(--danger); }
     .record-item.late { border-right-color: var(--warning); }
     .record-item.discipline { border-right-color: #7B1FA2; }
+    .color-swatch { width: 40px; height: 40px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.1rem; }
+    .color-swatch.selected { border-color: #333; box-shadow: 0 0 0 2px white inset; }
   </style>
 </head>
 <body>
@@ -90,7 +92,6 @@
     <input type="password" id="lock-password" class="form-control" placeholder="رمز عبور" style="max-width:280px;text-align:center;margin-bottom:16px;font-size:1.1rem;" />
     <button class="btn btn-primary" style="background:white;color:var(--primary);min-width:160px;" onclick="tryUnlock()">ورود</button>
     <p id="lock-error" style="color:#ffcdd2;margin-top:14px;font-size:0.9rem;display:none;">رمز اشتباه است</p>
-    <p style="opacity:0.7;margin-top:20px;font-size:0.8rem;text-align:center">هر شیفت فقط داده‌های خودش را می‌بیند<br>مدیر به هر دو شیفت دسترسی دارد</p>
   </div>
 
   <div class="header" id="header">
@@ -205,12 +206,18 @@
       </div>
 
       <div class="form-group">
-        <label>از تاریخ <small style="color:var(--text-secondary)">(میلادی)</small></label>
-        <input type="date" class="form-control" id="report-from" onchange="updatePersianRangeLabel()" />
+        <label>از تاریخ</label>
+        <div class="form-control" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="openJalaliPicker('report-from','updatePersianRangeLabel')">
+          <span id="report-from-label">انتخاب تاریخ</span><span>📅</span>
+        </div>
+        <input type="hidden" id="report-from" />
       </div>
       <div class="form-group">
-        <label>تا تاریخ <small style="color:var(--text-secondary)">(میلادی)</small></label>
-        <input type="date" class="form-control" id="report-to" onchange="updatePersianRangeLabel()" />
+        <label>تا تاریخ</label>
+        <div class="form-control" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="openJalaliPicker('report-to','updatePersianRangeLabel')">
+          <span id="report-to-label">انتخاب تاریخ</span><span>📅</span>
+        </div>
+        <input type="hidden" id="report-to" />
       </div>
       <div id="persian-range-label" style="font-size:0.85rem;color:var(--primary);margin-bottom:12px;text-align:center"></div>
 
@@ -221,6 +228,29 @@
 
   <!-- SETTINGS -->
   <div id="page-settings" class="page">
+    <div class="card">
+      <div class="card-title">ظاهر و شخصی‌سازی</div>
+      <div class="form-group">
+        <label>اندازه فونت</label>
+        <select class="form-control" id="appearance-fontsize" onchange="onAppearanceFieldChange()">
+          <option value="14">کوچک</option>
+          <option value="16">متوسط (پیش‌فرض)</option>
+          <option value="18">بزرگ</option>
+          <option value="21">خیلی بزرگ</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:6px">
+        <label>نوع فونت</label>
+        <select class="form-control" id="appearance-fontfamily" onchange="onAppearanceFieldChange()">
+          <option value="Tahoma, Arial, Helvetica, sans-serif">ساده (پیش‌فرض)</option>
+          <option value="Georgia, 'Times New Roman', serif">کتابی (سریف)</option>
+          <option value="'Courier New', Courier, monospace">تایپ‌رایتری (مونو)</option>
+          <option value="'Comic Sans MS', cursive, sans-serif">فانتزی</option>
+        </select>
+      </div>
+      <label style="display:block;font-size:0.9rem;font-weight:600;margin:14px 0 8px">رنگ اصلی برنامه</label>
+      <div id="color-swatches" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+    </div>
     <div class="card">
       <div class="card-title">شیفت فعلی</div>
       <div class="card-meta" id="current-shift-label" style="margin-bottom:10px">—</div>
@@ -239,10 +269,10 @@
       <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="openAddScoreRule()">افزودن مورد جدید</button>
     </div>
     <div class="card">
-      <div class="card-title">حجم حافظه</div>
+      <div class="card-title">فضای ذخیره‌سازی گوشی</div>
       <div class="card-meta" id="storage-text">در حال محاسبه...</div>
       <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
-      <div style="font-size:0.8rem;color:var(--text-secondary)">داده‌های دو شیفت جدا هستند ولی حافظه مشترک است (ظرفیت بالا).</div>
+      <div style="font-size:0.8rem;color:var(--text-secondary)">داده‌های دو شیفت جدا هستند ولی فضای ذخیره‌سازی مشترک است.</div>
     </div>
     <div class="card">
       <div class="card-title">پشتیبان‌گیری</div>
@@ -270,6 +300,12 @@
     <div class="modal">
       <div class="modal-header"><h2 id="modal-title">عنوان</h2><button class="modal-close" onclick="closeModal()">×</button></div>
       <div id="modal-body"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="jdate-modal" style="z-index:250">
+    <div class="modal" style="max-width:360px">
+      <div class="modal-header"><h2>انتخاب تاریخ</h2><button class="modal-close" onclick="closeJalaliPicker()">×</button></div>
+      <div id="jdate-modal-body"></div>
     </div>
   </div>
   <div class="toast" id="toast"></div>
@@ -383,23 +419,167 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-function todayStr() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+// ========== تقویم شمسی (Jalali) — مستقل از مرورگر ==========
+function pad2(n) { return String(n).padStart(2, '0'); }
+function toPersianDigits(str) {
+  const fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+  return String(str).replace(/[0-9]/g, d => fa[d]);
+}
+function jDiv(a, b) { return Math.trunc(a / b); }
+function jMod(a, b) { return a - jDiv(a, b) * b; }
+
+function jalCal(jy) {
+  const breaks = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+  const bl = breaks.length;
+  const gy = jy + 621;
+  let leapJ = -14, jp = breaks[0], jm, jump = 0, n;
+  for (let i = 1; i < bl; i++) {
+    jm = breaks[i];
+    jump = jm - jp;
+    if (jy < jm) break;
+    leapJ += jDiv(jump, 33) * 8 + jDiv(jMod(jump, 33), 4);
+    jp = jm;
+  }
+  n = jy - jp;
+  leapJ += jDiv(n, 33) * 8 + jDiv(jMod(n, 33) + 3, 4);
+  if (jMod(jump, 33) === 4 && jump - n === 4) leapJ += 1;
+  const leapG = jDiv(gy, 4) - jDiv((jDiv(gy, 100) + 1) * 3, 4) - 150;
+  const march = 20 + leapJ - leapG;
+  if (jump - n < 6) n = n - jump + jDiv(jump, 33) * 33;
+  let leap = jMod(jMod(n + 1, 33) - 1, 4);
+  if (leap === -1) leap = 4;
+  return { leap, gy, march };
 }
 
+function g2d(gy, gm, gd) {
+  let d = jDiv((gy + jDiv(gm - 8, 6) + 100100) * 1461, 4)
+    + jDiv(153 * jMod(gm + 9, 12) + 2, 5) + gd - 34840408;
+  d = d - jDiv(jDiv(gy + jDiv(gm - 8, 6) + 100100, 100) * 3, 4) + 752;
+  return d;
+}
+
+function d2g(jdn) {
+  let j = 4 * jdn + 139361631;
+  j = j + jDiv(jDiv(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908;
+  const i = jDiv(jMod(j, 1461), 4) * 5 + 308;
+  const gd = jDiv(jMod(i, 153), 5) + 1;
+  const gm = jMod(jDiv(i, 153), 12) + 1;
+  const gy = jDiv(j, 1461) - 100100 + jDiv(8 - gm, 6);
+  return { gy, gm, gd };
+}
+
+function j2d(jy, jm, jd) {
+  const r = jalCal(jy);
+  return g2d(r.gy, 3, r.march) + (jm - 1) * 31 - jDiv(jm, 7) * (jm - 7) + jd - 1;
+}
+
+function d2j(jdn) {
+  const gy = d2g(jdn).gy;
+  let jy = gy - 621;
+  const r = jalCal(jy);
+  const jdn1f = g2d(gy, 3, r.march);
+  let k = jdn - jdn1f, jm, jd;
+  if (k >= 0) {
+    if (k <= 185) {
+      jm = 1 + jDiv(k, 31);
+      jd = jMod(k, 31) + 1;
+      return { jy, jm, jd };
+    }
+    k -= 186;
+  } else {
+    jy -= 1;
+    k += 179;
+    if (r.leap === 1) k += 1;
+  }
+  jm = 7 + jDiv(k, 30);
+  jd = jMod(k, 30) + 1;
+  return { jy, jm, jd };
+}
+
+function toJalaali(gy, gm, gd) { return d2j(g2d(gy, gm, gd)); }
+function toGregorian(jy, jm, jd) { return d2g(j2d(jy, jm, jd)); }
+function isLeapJalaaliYear(jy) { return jalCal(jy).leap === 0; }
+function jalaaliMonthLength(jy, jm) {
+  if (jm <= 6) return 31;
+  if (jm <= 11) return 30;
+  return isLeapJalaaliYear(jy) ? 30 : 29;
+}
+
+const PERSIAN_MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+
+// تاریخ امروز به شمسی، به‌صورت رشته قابل مرتب‌سازی "jy-jm-jd" — این فرمت در همه‌ی پایگاه داده ذخیره می‌شود
+function todayStr() {
+  const d = new Date();
+  const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  return j.jy + '-' + pad2(j.jm) + '-' + pad2(j.jd);
+}
+
+// نمایش خوانا و فارسی یک تاریخ شمسی ذخیره‌شده (مثل "۱۲ مرداد ۱۴۰۴")
 function formatDate(d) {
   if (!d) return '';
-  try { return new Date(d).toLocaleDateString('fa-IR'); } catch { return d; }
+  const parts = String(d).split('-');
+  if (parts.length !== 3) return d;
+  const jy = parseInt(parts[0], 10), jm = parseInt(parts[1], 10), jd = parseInt(parts[2], 10);
+  if (!jy || !jm || !jd) return d;
+  return toPersianDigits(jd) + ' ' + (PERSIAN_MONTHS[jm - 1] || '') + ' ' + toPersianDigits(jy);
 }
 
 // تاریخ شمسی امروز برای استفاده در پیامک
 function persianToday() {
-  try {
-    return new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });
-  } catch {
-    return new Date().toLocaleDateString('fa-IR');
-  }
+  return formatDate(todayStr());
+}
+
+// ========== انتخاب‌گر تاریخ شمسی ==========
+let _jdPicker = { inputId: null, jy: 0, jm: 0, jd: 0, onConfirm: null };
+
+function setJdateField(id, value) {
+  const input = document.getElementById(id);
+  const label = document.getElementById(id + '-label');
+  if (input) input.value = value || '';
+  if (label) label.textContent = value ? formatDate(value) : 'انتخاب تاریخ';
+}
+
+function openJalaliPicker(inputId, onConfirm) {
+  const input = document.getElementById(inputId);
+  const todayParts = todayStr().split('-').map(Number);
+  let parts = (input && input.value ? input.value : '').split('-').map(Number);
+  if (parts.length !== 3 || !parts[0]) parts = todayParts;
+  _jdPicker = { inputId, jy: parts[0], jm: parts[1], jd: parts[2], onConfirm: onConfirm || null };
+  renderJalaliPickerBody();
+  document.getElementById('jdate-modal').classList.add('show');
+}
+
+function renderJalaliPickerBody() {
+  const { jy, jm } = _jdPicker;
+  const days = jalaaliMonthLength(jy, jm);
+  if (_jdPicker.jd > days) _jdPicker.jd = days;
+  const todayY = parseInt(todayStr().split('-')[0], 10);
+  const years = [];
+  for (let y = todayY - 6; y <= todayY + 2; y++) years.push(y);
+  document.getElementById('jdate-modal-body').innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <select class="form-control" onchange="_jdPicker.jd=parseInt(this.value)">
+        ${Array.from({ length: days }, (_, i) => i + 1).map(d => `<option value="${d}" ${d === _jdPicker.jd ? 'selected' : ''}>${toPersianDigits(d)}</option>`).join('')}
+      </select>
+      <select class="form-control" onchange="_jdPicker.jm=parseInt(this.value);renderJalaliPickerBody()">
+        ${PERSIAN_MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === jm ? 'selected' : ''}>${m}</option>`).join('')}
+      </select>
+      <select class="form-control" onchange="_jdPicker.jy=parseInt(this.value);renderJalaliPickerBody()">
+        ${years.map(y => `<option value="${y}" ${y === jy ? 'selected' : ''}>${toPersianDigits(y)}</option>`).join('')}
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="confirmJalaliPicker()">تأیید تاریخ</button>`;
+}
+
+function confirmJalaliPicker() {
+  const val = _jdPicker.jy + '-' + pad2(_jdPicker.jm) + '-' + pad2(_jdPicker.jd);
+  setJdateField(_jdPicker.inputId, val);
+  closeJalaliPicker();
+  if (_jdPicker.onConfirm && typeof window[_jdPicker.onConfirm] === 'function') window[_jdPicker.onConfirm]();
+}
+
+function closeJalaliPicker() {
+  document.getElementById('jdate-modal').classList.remove('show');
 }
 
 // جایگزینی متغیرهای قالب
@@ -491,8 +671,8 @@ async function updateStats() {
   document.getElementById('stat-classes').textContent = classes.length;
   document.getElementById('stat-students').textContent = students.length;
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const todayJ = todayStr().split('-').map(Number);
+  const monthStart = todayJ[0] + '-' + pad2(todayJ[1]) + '-01';
   const allAtt = forCurrentShift(await dbGetAll('attendance'));
   const monthAbs = allAtt.filter(a => a.type === 'absent' && a.date >= monthStart).length;
   document.getElementById('stat-absences').textContent = monthAbs;
@@ -766,7 +946,12 @@ async function openAddAttendance(type) {
   const options = rules.map(r => `<option value="${r.scoreDeduct}" data-title="${r.title}">${r.title} (کسر ${r.scoreDeduct})</option>`).join('');
   document.getElementById('modal-title').textContent = 'ثبت ' + label;
   document.getElementById('modal-body').innerHTML = `
-    <div class="form-group"><label>تاریخ</label><input type="date" class="form-control" id="att-date" value="${todayStr()}" /></div>
+    <div class="form-group"><label>تاریخ</label>
+      <div class="form-control" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="openJalaliPicker('att-date')">
+        <span id="att-date-label">${formatDate(todayStr())}</span><span>📅</span>
+      </div>
+      <input type="hidden" id="att-date" value="${todayStr()}" />
+    </div>
     <div class="form-group"><label>نوع / دلیل کسر</label>
       <select class="form-control" id="att-rule" onchange="document.getElementById('att-score').value=this.value">
         ${options || `<option value="${defaultScore}">پیش‌فرض (کسر ${defaultScore})</option>`}
@@ -836,7 +1021,12 @@ async function openAddDiscipline() {
     </div>
     <div class="form-group"><label>عنوان</label>
       <input type="text" class="form-control" id="disc-title" value="${rules[0] ? rules[0].title : ''}" /></div>
-    <div class="form-group"><label>تاریخ</label><input type="date" class="form-control" id="disc-date" value="${todayStr()}" /></div>
+    <div class="form-group"><label>تاریخ</label>
+      <div class="form-control" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="openJalaliPicker('disc-date')">
+        <span id="disc-date-label">${formatDate(todayStr())}</span><span>📅</span>
+      </div>
+      <input type="hidden" id="disc-date" value="${todayStr()}" />
+    </div>
     <div class="form-group"><label>کسر نمره</label>
       <input type="number" class="form-control" id="disc-score" value="${defaultScore}" step="0.25" min="0" max="20" />
     </div>
@@ -1015,7 +1205,7 @@ async function printStudentReport() {
     disc.forEach(d => { report += `• ${formatDate(d.date)} — ${d.title}${d.description ? ': ' + d.description : ''} [کسر: ${parseFloat(d.scoreDeduct)||0}]\n`; });
     report += '\n';
   }
-  report += `تاریخ گزارش: ${new Date().toLocaleDateString('fa-IR')}\nطراحی: سید مجتبی موسوی`;
+  report += `تاریخ گزارش: ${persianToday()}\nطراحی: سید مجتبی موسوی`;
 
   document.getElementById('modal-title').textContent = 'گزارش برای اولیا';
   document.getElementById('modal-body').innerHTML = `
@@ -1216,23 +1406,22 @@ async function prepareReportsPage() {
 }
 
 function setReportRange(type) {
-  const now = new Date();
-  let from, to;
-  to = now.toISOString().slice(0, 10);
+  const todayJ = todayStr().split('-').map(Number); // [jy, jm, jd]
+  let from, to = todayStr();
 
   if (type === 'month') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    from = todayJ[0] + '-' + pad2(todayJ[1]) + '-01';
   } else if (type === 'year') {
-    // تقریبی سال تحصیلی شمسی: از مهر (معمولاً ۲۳ سپتامبر)
-    const year = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-    from = year + '-09-23';
+    // سال تحصیلی شمسی: از اول مهر
+    const jy = todayJ[1] >= 7 ? todayJ[0] : todayJ[0] - 1;
+    from = jy + '-07-01';
   } else {
     from = '';
     to = '';
   }
 
-  document.getElementById('report-from').value = from;
-  document.getElementById('report-to').value = to;
+  setJdateField('report-from', from);
+  setJdateField('report-to', to);
   updatePersianRangeLabel();
 }
 
@@ -1246,7 +1435,7 @@ function updatePersianRangeLabel() {
   }
   const fromFa = from ? formatDate(from) : '...';
   const toFa = to ? formatDate(to) : '...';
-  label.textContent = `بازه شمسی: از ${fromFa} تا ${toFa}`;
+  label.textContent = `بازه: از ${fromFa} تا ${toFa}`;
 }
 
 async function generateClassReport() {
@@ -1379,7 +1568,7 @@ async function generateClassReport() {
     }
   }
   textReport += `\n${'─'.repeat(30)}\n`;
-  textReport += `تاریخ تهیه گزارش: ${new Date().toLocaleDateString('fa-IR')}\n`;
+  textReport += `تاریخ تهیه گزارش: ${persianToday()}\n`;
   textReport += `طراحی: سید مجتبی موسوی`;
 
   html += `
@@ -1413,33 +1602,113 @@ function printClassReport() {
   setTimeout(() => { w.print(); }, 300);
 }
 
+// ========== ظاهر و شخصی‌سازی (فونت و رنگ) ==========
+const COLOR_THEMES = {
+  blue:   { primary: '#1565C0', dark: '#0D47A1', light: '#E3F2FD', name: 'آبی' },
+  green:  { primary: '#2E7D32', dark: '#1B5E20', light: '#E8F5E9', name: 'سبز' },
+  purple: { primary: '#6A1B9A', dark: '#4A148C', light: '#F3E5F5', name: 'بنفش' },
+  orange: { primary: '#EF6C00', dark: '#E65100', light: '#FFF3E0', name: 'نارنجی' },
+  red:    { primary: '#C62828', dark: '#8E0000', light: '#FFEBEE', name: 'قرمز' },
+  teal:   { primary: '#00695C', dark: '#004D40', light: '#E0F2F1', name: 'سبزآبی' },
+  slate:  { primary: '#37474F', dark: '#263238', light: '#ECEFF1', name: 'طوسی' }
+};
+const DEFAULT_APPEARANCE = { fontSize: 16, fontFamily: "Tahoma, Arial, Helvetica, sans-serif", colorTheme: 'blue' };
+let appAppearance = { ...DEFAULT_APPEARANCE };
+
+async function loadAppearanceSettings() {
+  try {
+    const s = await dbGet('settings', 'appearance');
+    appAppearance = (s && s.value) ? { ...DEFAULT_APPEARANCE, ...s.value } : { ...DEFAULT_APPEARANCE };
+  } catch {
+    appAppearance = { ...DEFAULT_APPEARANCE };
+  }
+  return appAppearance;
+}
+
+async function saveAppearanceSettings() {
+  await dbPut('settings', { key: 'appearance', value: appAppearance });
+}
+
+function applyAppearance() {
+  const theme = COLOR_THEMES[appAppearance.colorTheme] || COLOR_THEMES.blue;
+  document.documentElement.style.fontSize = (appAppearance.fontSize || 16) + 'px';
+  document.body.style.fontFamily = appAppearance.fontFamily || DEFAULT_APPEARANCE.fontFamily;
+  document.documentElement.style.setProperty('--primary', theme.primary);
+  document.documentElement.style.setProperty('--primary-dark', theme.dark);
+  document.documentElement.style.setProperty('--primary-light', theme.light);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme.primary);
+}
+
+async function onAppearanceFieldChange() {
+  appAppearance.fontSize = parseInt(document.getElementById('appearance-fontsize').value, 10) || 16;
+  appAppearance.fontFamily = document.getElementById('appearance-fontfamily').value;
+  applyAppearance();
+  await saveAppearanceSettings();
+  toast('ذخیره شد');
+}
+
+async function selectColorTheme(key) {
+  appAppearance.colorTheme = key;
+  applyAppearance();
+  await saveAppearanceSettings();
+  renderColorSwatches();
+  toast('رنگ تغییر کرد');
+}
+
+function renderColorSwatches() {
+  const box = document.getElementById('color-swatches');
+  if (!box) return;
+  box.innerHTML = Object.keys(COLOR_THEMES).map(key => {
+    const t = COLOR_THEMES[key];
+    const selected = appAppearance.colorTheme === key ? 'selected' : '';
+    return `<div class="color-swatch ${selected}" style="background:${t.primary}" onclick="selectColorTheme('${key}')" title="${t.name}">${selected ? '✓' : ''}</div>`;
+  }).join('');
+}
+
+function renderAppearanceControls() {
+  document.getElementById('appearance-fontsize').value = String(appAppearance.fontSize || 16);
+  document.getElementById('appearance-fontfamily').value = appAppearance.fontFamily || DEFAULT_APPEARANCE.fontFamily;
+  renderColorSwatches();
+}
+
 // ========== Settings & Storage ==========
 async function estimateStorage() {
+  const textEl = document.getElementById('storage-text');
+  const fillEl = document.getElementById('storage-fill');
   try {
     if (navigator.storage && navigator.storage.estimate) {
       const est = await navigator.storage.estimate();
       const used = est.usage || 0;
-      const quota = est.quota || 1;
+      const quota = est.quota || 0;
+      if (!quota) throw new Error('no quota');
+      const free = Math.max(0, quota - used);
       const percent = Math.min(100, Math.round((used / quota) * 100));
-      const usedMB = (used / (1024 * 1024)).toFixed(2);
-      const quotaMB = (quota / (1024 * 1024)).toFixed(0);
-      document.getElementById('storage-text').textContent = `${usedMB} مگابایت از حدود ${quotaMB} مگابایت استفاده شده`;
-      document.getElementById('storage-fill').style.width = percent + '%';
-      if (percent > 70) document.getElementById('storage-fill').style.background = 'var(--danger)';
-      else if (percent > 40) document.getElementById('storage-fill').style.background = 'var(--warning)';
-      else document.getElementById('storage-fill').style.background = 'var(--primary)';
+      const usedMB = used / (1024 * 1024);
+      const freeMB = free / (1024 * 1024);
+      const usedText = usedMB > 1024 ? (usedMB / 1024).toFixed(2) + ' گیگابایت' : usedMB.toFixed(1) + ' مگابایت';
+      const freeText = freeMB > 1024 ? (freeMB / 1024).toFixed(2) + ' گیگابایت' : freeMB.toFixed(0) + ' مگابایت';
+      textEl.textContent = `${usedText} اشغال شده — ${freeText} فضای خالی باقی‌مانده در گوشی`;
+      fillEl.style.width = percent + '%';
+      if (percent > 70) fillEl.style.background = 'var(--danger)';
+      else if (percent > 40) fillEl.style.background = 'var(--warning)';
+      else fillEl.style.background = 'var(--primary)';
     } else {
-      // fallback: count records
+      throw new Error('no estimate api');
+    }
+  } catch {
+    // fallback: count records (وقتی مرورگر/وب‌ویو اطلاعات فضای دستگاه را نمی‌دهد)
+    try {
       const counts = await Promise.all([
         dbGetAll('classes'), dbGetAll('students'), dbGetAll('attendance'),
         dbGetAll('discipline'), dbGetAll('smsHistory'), dbGetAll('templates')
       ]);
       const total = counts.reduce((s, a) => s + a.length, 0);
-      document.getElementById('storage-text').textContent = `تعداد کل رکوردها: ${total} (IndexedDB - ظرفیت بالا)`;
-      document.getElementById('storage-fill').style.width = Math.min(100, total / 50) + '%';
+      textEl.textContent = `تعداد کل رکوردهای ذخیره‌شده: ${total} (اطلاعات فضای خالی گوشی در دسترس نیست)`;
+      fillEl.style.width = Math.min(100, total / 50) + '%';
+    } catch {
+      textEl.textContent = 'اطلاعات فضای ذخیره‌سازی در دسترس نیست';
     }
-  } catch {
-    document.getElementById('storage-text').textContent = 'IndexedDB فعال است (ظرفیت بالا)';
   }
 }
 
@@ -1447,6 +1716,7 @@ async function renderSettings() {
   await estimateStorage();
   await loadAppSettings();
   await renderScoreRules();
+  renderAppearanceControls();
 
   document.getElementById('current-shift-label').textContent =
     (isAdmin ? 'مدیر — مشاهده: ' : '') + shiftName(currentShiftId);
@@ -1488,6 +1758,13 @@ function logout() {
   isUnlocked = false;
   isAdmin = false;
   currentShiftId = null;
+  document.documentElement.style.fontSize = '';
+  document.body.style.fontFamily = '';
+  document.documentElement.style.removeProperty('--primary');
+  document.documentElement.style.removeProperty('--primary-dark');
+  document.documentElement.style.removeProperty('--primary-light');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', '#1565C0');
   document.getElementById('lock-password').value = '';
   document.getElementById('lock-error').style.display = 'none';
   document.getElementById('lock-screen').style.display = 'flex';
@@ -1533,7 +1810,7 @@ async function exportBackup() {
     discipline: await dbGetAll('discipline'),
     smsHistory: await dbGetAll('smsHistory'),
     settings: await dbGetAll('settings'),
-    exportDate: new Date().toLocaleString('fa-IR'),
+    exportDate: persianToday(),
     version: 2
   };
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -1578,6 +1855,7 @@ async function importBackup(event) {
 
 function closeModal() { document.getElementById('modal').classList.remove('show'); }
 document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('jdate-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeJalaliPicker(); });
 
 async function loadAppSettings() {
   const admin = await dbGet('settings', 'adminPassword');
@@ -1619,6 +1897,7 @@ async function tryUnlock() {
       currentShiftId = 'shift_morning';
       isUnlocked = true;
       document.getElementById('lock-screen').style.display = 'none';
+      applyAppearance();
       toast('رمز مدیر تنظیم شد — وارد شدید');
       await updateStats();
       showPage('home');
@@ -1629,6 +1908,7 @@ async function tryUnlock() {
       currentShiftId = 'shift_morning';
       isUnlocked = true;
       document.getElementById('lock-screen').style.display = 'none';
+      applyAppearance();
       toast('ورود مدیر موفق');
       await updateStats();
       showPage('home');
@@ -1655,6 +1935,7 @@ async function tryUnlock() {
     currentShiftId = selected;
     isUnlocked = true;
     document.getElementById('lock-screen').style.display = 'none';
+    applyAppearance();
     toast('رمز ' + shiftName(selected) + ' تنظیم شد');
     await updateStats();
     showPage('home');
@@ -1666,6 +1947,7 @@ async function tryUnlock() {
     currentShiftId = selected;
     isUnlocked = true;
     document.getElementById('lock-screen').style.display = 'none';
+    applyAppearance();
     toast('خوش آمدید — ' + shiftName(selected));
     await updateStats();
     showPage('home');
@@ -1691,12 +1973,47 @@ function forCurrentShift(items) {
   });
 }
 
+// ========== مهاجرت یک‌باره: تاریخ‌های قدیمی میلادی -> شمسی ==========
+// نسخه‌های قبلی اپ تاریخ‌ها را میلادی ذخیره می‌کردند. این تابع فقط یک‌بار اجرا می‌شود
+// و تمام تاریخ‌های ثبت‌شده‌ی قدیمی را به شمسی تبدیل می‌کند تا گزارش‌ها درست نمایش داده شوند.
+async function migrateDatesToJalaliIfNeeded() {
+  try {
+    const marker = await dbGet('settings', 'jalaliMigrationDone');
+    if (marker && marker.value) return;
+
+    const convert = (d) => {
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+      const [y, m, day] = d.split('-').map(Number);
+      if (y < 1700) return d; // احتمالاً همین الان هم شمسی است؛ دست‌نخورده بماند
+      try {
+        const j = toJalaali(y, m, day);
+        return j.jy + '-' + pad2(j.jm) + '-' + pad2(j.jd);
+      } catch { return d; }
+    };
+
+    for (const store of ['attendance', 'discipline', 'smsHistory']) {
+      const items = await dbGetAll(store);
+      for (const item of items) {
+        if (item.date) {
+          const converted = convert(item.date);
+          if (converted !== item.date) { item.date = converted; await dbPut(store, item); }
+        }
+      }
+    }
+    await dbPut('settings', { key: 'jalaliMigrationDone', value: true });
+  } catch (err) {
+    console.error('date migration failed', err);
+  }
+}
+
 // ========== Init ==========
 (async function init() {
   try {
     await openDB();
+    await loadAppearanceSettings();
+    await migrateDatesToJalaliIfNeeded();
     await checkLock();
-    if (isUnlocked) await updateStats();
+    if (isUnlocked) { applyAppearance(); await updateStats(); }
   } catch (err) {
     console.error(err);
     toast('خطا در راه‌اندازی پایگاه داده');
